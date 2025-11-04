@@ -4,7 +4,7 @@ class AppConfig {
 
   // API Configuration
   static const String baseUrl = 'https://api.youtubedu.com';
-  static const String youtubeApiKey = 'YOUR_YOUTUBE_API_KEY';
+  static const String youtubeApiKey = 'AIzaSyB5soERe6NZKbW81EV6ZDzo3tOV6rkXKXw';
   static const String openaiApiKey = 'YOUR_OPENAI_API_KEY';
 
   // App Settings

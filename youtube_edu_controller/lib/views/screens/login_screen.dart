@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_routes.dart';
+import '../../services/auth/google_auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -39,6 +41,41 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (mounted) {
       context.go(AppRoutes.home);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final account = await GoogleAuthService().signIn();
+
+      if (account != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${account.displayName}님, 환영합니다!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.go(AppRoutes.home);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Google 로그인 실패: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -183,9 +220,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   height: 56.h,
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      // TODO: Implement Google Sign In
-                    },
+                    onPressed: _isLoading ? null : _handleGoogleSignIn,
                     icon: Icon(
                       Icons.login,
                       size: 20.sp,
@@ -218,6 +253,63 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
+                // Debug Only: Skip Login Button
+                if (kDebugMode) ...[
+                  SizedBox(height: 16.h),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.orange.withOpacity(0.5),
+                        width: 2,
+                      ),
+                      borderRadius: BorderRadius.circular(8.r),
+                      color: Colors.orange.withOpacity(0.1),
+                    ),
+                    padding: EdgeInsets.all(12.w),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.bug_report,
+                              color: Colors.orange,
+                              size: 16.sp,
+                            ),
+                            SizedBox(width: 8.w),
+                            Text(
+                              'DEBUG MODE',
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8.h),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              // Skip login and go directly to home
+                              context.go(AppRoutes.home);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.orange,
+                              side: const BorderSide(color: Colors.orange),
+                            ),
+                            icon: Icon(Icons.skip_next, size: 20.sp),
+                            label: Text(
+                              '로그인 건너뛰기 (테스트용)',
+                              style: TextStyle(fontSize: 14.sp),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
