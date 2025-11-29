@@ -11,7 +11,6 @@ class GoogleAuthService {
       'profile',
       'https://www.googleapis.com/auth/youtube.readonly',
     ],
-    serverClientId: '97676490261-k15eghnqbsv9jt6hmsk3s0kllbu6nmjc.apps.googleusercontent.com',
   );
 
   GoogleSignInAccount? _currentUser;
