@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../widgets/player/youtube_player_widget.dart';
 import '../../services/api/youtube_service.dart';
+import '../../services/storage/local_storage_service.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
   final String videoId;
@@ -39,6 +40,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _videoDetails = videoDetails;
         _isLoading = false;
       });
+
+      // 시청 기록 저장
+      await _saveToWatchHistory(videoDetails);
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -48,6 +52,21 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           SnackBar(content: Text('동영상 정보를 불러올 수 없습니다: $e')),
         );
       }
+    }
+  }
+
+  Future<void> _saveToWatchHistory(YouTubeVideoDetails videoDetails) async {
+    try {
+      await LocalStorageService().addToWatchHistory({
+        'videoId': widget.videoId,
+        'title': videoDetails.title,
+        'channelTitle': videoDetails.channelTitle,
+        'thumbnailUrl': videoDetails.thumbnailUrl,
+        'description': videoDetails.description,
+      });
+    } catch (e) {
+      // 시청 기록 저장 실패는 사용자에게 표시하지 않음
+      debugPrint('Failed to save watch history: $e');
     }
   }
 

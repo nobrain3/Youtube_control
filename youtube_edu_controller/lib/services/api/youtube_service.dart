@@ -30,6 +30,27 @@ class YouTubeService {
     }
   }
 
+  Future<List<YouTubeVideo>> getPopularVideos({int maxResults = 20, String regionCode = 'KR'}) async {
+    try {
+      final response = await _dio.get(
+        'https://www.googleapis.com/youtube/v3/videos',
+        queryParameters: {
+          'part': 'snippet',
+          'chart': 'mostPopular',
+          'maxResults': maxResults,
+          'regionCode': regionCode,
+          // videoCategoryId를 제거하여 모든 카테고리의 인기 동영상을 가져옵니다
+          'key': AppConfig.youtubeApiKey,
+        },
+      );
+
+      final List<dynamic> items = response.data['items'];
+      return items.map((item) => YouTubeVideo.fromVideoJson(item)).toList();
+    } catch (e) {
+      throw Exception('Failed to get popular videos: $e');
+    }
+  }
+
   Future<YouTubeVideoDetails> getVideoDetails(String videoId) async {
     try {
       final response = await _dio.get(
@@ -81,6 +102,18 @@ class YouTubeVideo {
     final snippet = json['snippet'];
     return YouTubeVideo(
       id: json['id']['videoId'],
+      title: snippet['title'],
+      channelTitle: snippet['channelTitle'],
+      thumbnailUrl: snippet['thumbnails']['medium']['url'],
+      description: snippet['description'],
+      publishedAt: DateTime.parse(snippet['publishedAt']),
+    );
+  }
+
+  factory YouTubeVideo.fromVideoJson(Map<String, dynamic> json) {
+    final snippet = json['snippet'];
+    return YouTubeVideo(
+      id: json['id'],
       title: snippet['title'],
       channelTitle: snippet['channelTitle'],
       thumbnailUrl: snippet['thumbnails']['medium']['url'],
