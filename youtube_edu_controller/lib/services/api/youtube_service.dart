@@ -130,23 +130,28 @@ class YouTubeService {
 
       // 로그인하지 않았거나 토큰이 없으면 인기 영상 반환
       if (accessToken == null) {
+        print('No access token - using popular videos');
         return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
       }
 
       // 1. 사용자의 구독 채널 가져오기
       final channelIds = await _getUserSubscriptionChannelIds(accessToken);
+      print('Found ${channelIds.length} subscribed channels');
 
       if (channelIds.isEmpty) {
         // 구독 채널이 없으면 인기 영상 반환
+        print('No subscriptions - using popular videos');
         return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
       }
 
       // 2. 구독 채널의 최신 영상 가져오기
       final videos = await _getVideosFromChannels(channelIds, maxResults, pageToken);
+      print('Retrieved ${videos.videos.length} personalized videos');
 
       return videos;
     } catch (e) {
       // 오류 발생 시 인기 영상으로 폴백
+      print('Error in personalized recommendations: $e');
       return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
     }
   }
@@ -187,40 +192,67 @@ class YouTubeService {
     try {
       // 채널 ID를 랜덤하게 섞어서 다양성 확보
       final shuffledChannels = List<String>.from(channelIds)..shuffle();
-      final selectedChannels = shuffledChannels.take(10).toList();
 
-      final queryParams = {
-        'part': 'snippet',
-        'type': 'video',
-        'maxResults': maxResults,
-        'order': 'date', // 최신순
-        'videoEmbeddable': 'true',
-        'key': AppConfig.youtubeApiKey,
-      };
+      // 페이지네이션: pageToken에 따라 다른 채널 세트 선택
+      final int offset = pageToken != null ? int.tryParse(pageToken) ?? 0 : 0;
+      final int channelsPerPage = 5;
+      final startIndex = offset * channelsPerPage;
 
-      // 여러 채널의 영상을 검색
-      if (selectedChannels.isNotEmpty) {
-        queryParams['channelId'] = selectedChannels.join(',');
+      // 채널이 부족하면 처음부터 다시 시작 (순환)
+      final availableChannels = shuffledChannels.length;
+      final selectedChannels = <String>[];
+
+      for (int i = 0; i < channelsPerPage && selectedChannels.length < channelsPerPage; i++) {
+        final index = (startIndex + i) % availableChannels;
+        if (index < availableChannels) {
+          selectedChannels.add(shuffledChannels[index]);
+        }
       }
 
-      if (pageToken != null) {
-        queryParams['pageToken'] = pageToken;
+      List<YouTubeVideo> allVideos = [];
+
+      // 각 채널마다 최신 영상 가져오기
+      for (final channelId in selectedChannels) {
+        try {
+          final response = await _dio.get(
+            'https://www.googleapis.com/youtube/v3/search',
+            queryParameters: {
+              'part': 'snippet',
+              'channelId': channelId,
+              'type': 'video',
+              'maxResults': 5, // 각 채널에서 5개씩
+              'order': 'date',
+              'videoEmbeddable': 'true',
+              'key': AppConfig.youtubeApiKey,
+            },
+          );
+
+          final List<dynamic> items = response.data['items'] ?? [];
+          final videos = items.map((item) => YouTubeVideo.fromJson(item)).toList();
+          allVideos.addAll(videos);
+        } catch (e) {
+          // 개별 채널 오류는 무시하고 계속 진행
+          print('Error fetching from channel $channelId: $e');
+          continue;
+        }
       }
 
-      final response = await _dio.get(
-        'https://www.googleapis.com/youtube/v3/search',
-        queryParameters: queryParams,
-      );
+      // 날짜순으로 정렬 (최신순)
+      allVideos.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
 
-      final List<dynamic> items = response.data['items'] ?? [];
-      final videos = items.map((item) => YouTubeVideo.fromJson(item)).toList();
-      final nextPageToken = response.data['nextPageToken'] as String?;
+      // maxResults 개수만큼 잘라내기
+      final resultVideos = allVideos.take(maxResults).toList();
+
+      // 다음 페이지 토큰 생성 (채널이 충분히 있으면)
+      final hasMoreChannels = (offset + 1) * channelsPerPage < availableChannels;
+      final nextToken = hasMoreChannels ? '${offset + 1}' : null;
 
       return YouTubeSearchResult(
-        videos: videos,
-        nextPageToken: nextPageToken,
+        videos: resultVideos,
+        nextPageToken: nextToken,
       );
     } catch (e) {
+      print('Error in _getVideosFromChannels: $e');
       throw Exception('Failed to get videos from channels: $e');
     }
   }
