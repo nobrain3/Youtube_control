@@ -91,6 +91,89 @@ class YouTubeService {
     }
   }
 
+  // 개인화된 Shorts 가져오기
+  Future<List<YouTubeVideo>> getPersonalizedShorts({int maxResults = 20}) async {
+    try {
+      final accessToken = await GoogleAuthService().getAccessToken();
+
+      // 로그인하지 않았거나 토큰이 없으면 일반 Shorts 반환
+      if (accessToken == null) {
+        print('No access token - using general shorts');
+        return getShorts(maxResults: maxResults);
+      }
+
+      // 1. 사용자의 구독 채널 가져오기
+      final channelIds = await _getUserSubscriptionChannelIds(accessToken);
+      print('Found ${channelIds.length} subscribed channels for Shorts');
+
+      if (channelIds.isEmpty) {
+        // 구독 채널이 없으면 일반 Shorts 반환
+        print('No subscriptions - using general shorts');
+        return getShorts(maxResults: maxResults);
+      }
+
+      // 2. 구독 채널의 Shorts 가져오기
+      final shorts = await _getShortsFromChannels(channelIds, maxResults);
+      print('Retrieved ${shorts.length} personalized shorts');
+
+      return shorts;
+    } catch (e) {
+      // 오류 발생 시 일반 Shorts로 폴백
+      print('Error in personalized shorts: $e');
+      return getShorts(maxResults: maxResults);
+    }
+  }
+
+  // 특정 채널들의 Shorts 가져오기
+  Future<List<YouTubeVideo>> _getShortsFromChannels(
+    List<String> channelIds,
+    int maxResults,
+  ) async {
+    try {
+      // 채널 ID를 랜덤하게 섞어서 다양성 확보
+      final shuffledChannels = List<String>.from(channelIds)..shuffle();
+      final selectedChannels = shuffledChannels.take(10).toList();
+
+      List<YouTubeVideo> allShorts = [];
+
+      // 각 채널마다 Shorts 가져오기
+      for (final channelId in selectedChannels) {
+        try {
+          final response = await _dio.get(
+            'https://www.googleapis.com/youtube/v3/search',
+            queryParameters: {
+              'part': 'snippet',
+              'channelId': channelId,
+              'type': 'video',
+              'videoDuration': 'short', // Shorts만 필터링
+              'maxResults': 3, // 각 채널에서 3개씩
+              'order': 'date',
+              'videoEmbeddable': 'true',
+              'key': AppConfig.youtubeApiKey,
+            },
+          );
+
+          final List<dynamic> items = response.data['items'] ?? [];
+          final videos = items.map((item) => YouTubeVideo.fromJson(item)).toList();
+          allShorts.addAll(videos);
+        } catch (e) {
+          // 개별 채널 오류는 무시하고 계속 진행
+          print('Error fetching shorts from channel $channelId: $e');
+          continue;
+        }
+      }
+
+      // 날짜순으로 정렬 (최신순)
+      allShorts.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+
+      // maxResults 개수만큼 잘라내기
+      return allShorts.take(maxResults).toList();
+    } catch (e) {
+      print('Error in _getShortsFromChannels: $e');
+      throw Exception('Failed to get shorts from channels: $e');
+    }
+  }
+
   Future<YouTubeVideoDetails> getVideoDetails(String videoId) async {
     try {
       final response = await _dio.get(

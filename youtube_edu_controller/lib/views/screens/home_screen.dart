@@ -106,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final videos = await YouTubeService().getShorts(maxResults: 20);
+      final videos = await YouTubeService().getPersonalizedShorts(maxResults: 20);
       setState(() {
         _shortsVideos = videos;
         _isLoadingShorts = false;
