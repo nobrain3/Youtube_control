@@ -13,21 +13,30 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _homeScrollController = ScrollController();
   int _selectedIndex = 0;
+  int _currentPageIndex = 0;
   List<YouTubeVideo> _searchResults = [];
   List<YouTubeVideo> _recommendedVideos = [];
+  List<YouTubeVideo> _shortsVideos = [];
   bool _isSearching = false;
   bool _isLoadingRecommended = false;
+  bool _isLoadingShorts = false;
+  bool _isLoadingMoreRecommended = false;
+  String? _nextPageToken;
 
   @override
   void initState() {
     super.initState();
     _loadRecommendedVideos();
+    _loadShorts();
+    _homeScrollController.addListener(_onHomeScroll);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _homeScrollController.dispose();
     super.dispose();
   }
 
@@ -37,9 +46,10 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final videos = await YouTubeService().getPopularVideos(maxResults: 10);
+      final result = await YouTubeService().getPersonalizedRecommendations(maxResults: 10);
       setState(() {
-        _recommendedVideos = videos;
+        _recommendedVideos = result.videos;
+        _nextPageToken = result.nextPageToken;
         _isLoadingRecommended = false;
       });
     } catch (e) {
@@ -54,10 +64,70 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _loadMoreRecommendedVideos() async {
+    if (_isLoadingMoreRecommended || _nextPageToken == null) return;
+
+    setState(() {
+      _isLoadingMoreRecommended = true;
+    });
+
+    try {
+      final result = await YouTubeService().getPersonalizedRecommendations(
+        maxResults: 10,
+        pageToken: _nextPageToken,
+      );
+      setState(() {
+        _recommendedVideos.addAll(result.videos);
+        _nextPageToken = result.nextPageToken;
+        _isLoadingMoreRecommended = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingMoreRecommended = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('영상 로딩 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
+  void _onHomeScroll() {
+    if (_homeScrollController.position.pixels >=
+        _homeScrollController.position.maxScrollExtent - 200) {
+      _loadMoreRecommendedVideos();
+    }
+  }
+
+  Future<void> _loadShorts() async {
+    setState(() {
+      _isLoadingShorts = true;
+    });
+
+    try {
+      final videos = await YouTubeService().getShorts(maxResults: 20);
+      setState(() {
+        _shortsVideos = videos;
+        _isLoadingShorts = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingShorts = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Shorts 로딩 중 오류가 발생했습니다: $e')),
+        );
+      }
+    }
+  }
+
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+      _currentPageIndex = index;
     });
   }
 
@@ -124,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.search, color: Colors.black),
             onPressed: () {
               setState(() {
-                _selectedIndex = 1;
+                _currentPageIndex = 3;
               });
             },
           ),
@@ -137,11 +207,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: IndexedStack(
-        index: _selectedIndex,
+        index: _currentPageIndex,
         children: [
           _buildHomeTab(),
-          _buildSearchTab(),
+          _buildShortsTab(),
           _buildHistoryTab(),
+          _buildSearchTab(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -159,9 +230,9 @@ class _HomeScreenState extends State<HomeScreen> {
             label: '홈',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.explore_outlined),
-            activeIcon: Icon(Icons.explore),
-            label: '탐색',
+            icon: Icon(Icons.play_circle_outline),
+            activeIcon: Icon(Icons.play_circle_filled),
+            label: 'Shorts',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.video_library_outlined),
@@ -175,10 +246,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeTab() {
     return SingleChildScrollView(
+      controller: _homeScrollController,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildRecommendedVideos(),
+          if (_isLoadingMoreRecommended)
+            Padding(
+              padding: EdgeInsets.all(16.h),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
         ],
       ),
     );
@@ -300,47 +377,193 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildShortsTab() {
+    if (_isLoadingShorts) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.h),
+          child: const CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_shortsVideos.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.h),
+          child: Text(
+            'Shorts를 불러올 수 없습니다',
+            style: TextStyle(
+              fontSize: 14.sp,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: EdgeInsets.all(8.w),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 9 / 16,
+        crossAxisSpacing: 8.w,
+        mainAxisSpacing: 8.h,
+      ),
+      itemCount: _shortsVideos.length,
+      itemBuilder: (context, index) {
+        final video = _shortsVideos[index];
+        return _buildShortsItem(video);
+      },
+    );
+  }
+
+  Widget _buildShortsItem(YouTubeVideo video) {
+    return InkWell(
+      onTap: () => _playVideo(video),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 썸네일
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8.r),
+            child: Image.network(
+              video.thumbnailUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.play_circle_outline, size: 50),
+                );
+              },
+            ),
+          ),
+          // 그라데이션 오버레이
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8.r),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                  stops: const [0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
+          // 제목
+          Positioned(
+            bottom: 8.h,
+            left: 8.w,
+            right: 8.w,
+            child: Text(
+              video.title,
+              style: TextStyle(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Shorts 아이콘
+          Positioned(
+            top: 8.h,
+            right: 8.w,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(4.r),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.play_circle_filled,
+                    color: Colors.white,
+                    size: 12.sp,
+                  ),
+                  SizedBox(width: 2.w),
+                  Text(
+                    'Shorts',
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSearchTab() {
     return Column(
       children: [
-        // 검색 바
+        // 검색 바와 뒤로가기 버튼
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+          padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 8.h),
           color: Colors.white,
-          child: TextField(
-            controller: _searchController,
-            autofocus: false,
-            decoration: InputDecoration(
-              hintText: '검색',
-              hintStyle: TextStyle(color: Colors.grey[600]),
-              prefixIcon: const Icon(Icons.search, color: Colors.black),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.black),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() {
-                          _searchResults.clear();
-                        });
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: Colors.grey[200],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.r),
-                borderSide: BorderSide.none,
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () {
+                  setState(() {
+                    _currentPageIndex = _selectedIndex;
+                    _searchController.clear();
+                    _searchResults.clear();
+                  });
+                },
               ),
-              contentPadding: EdgeInsets.symmetric(vertical: 10.h),
-            ),
-            onSubmitted: (value) {
-              if (value.isNotEmpty) {
-                _searchVideos(value);
-              }
-            },
-            onChanged: (value) {
-              setState(() {});
-            },
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: '검색',
+                    hintStyle: TextStyle(color: Colors.grey[600]),
+                    prefixIcon: const Icon(Icons.search, color: Colors.black),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: Colors.black),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {
+                                _searchResults.clear();
+                              });
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.grey[200],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: EdgeInsets.symmetric(vertical: 10.h),
+                  ),
+                  onSubmitted: (value) {
+                    if (value.isNotEmpty) {
+                      _searchVideos(value);
+                    }
+                  },
+                  onChanged: (value) {
+                    setState(() {});
+                  },
+                ),
+              ),
+            ],
           ),
         ),
         // 검색 결과

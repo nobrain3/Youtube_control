@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../config/app_config.dart';
+import '../auth/google_auth_service.dart';
 
 class YouTubeService {
   static final YouTubeService _instance = YouTubeService._internal();
@@ -30,24 +31,63 @@ class YouTubeService {
     }
   }
 
-  Future<List<YouTubeVideo>> getPopularVideos({int maxResults = 20, String regionCode = 'KR'}) async {
+  Future<YouTubeSearchResult> getPopularVideos({
+    int maxResults = 20,
+    String regionCode = 'KR',
+    String? pageToken,
+  }) async {
     try {
+      final queryParams = {
+        'part': 'snippet',
+        'chart': 'mostPopular',
+        'maxResults': maxResults,
+        'regionCode': regionCode,
+        'key': AppConfig.youtubeApiKey,
+      };
+
+      if (pageToken != null) {
+        queryParams['pageToken'] = pageToken;
+      }
+
       final response = await _dio.get(
         'https://www.googleapis.com/youtube/v3/videos',
+        queryParameters: queryParams,
+      );
+
+      final List<dynamic> items = response.data['items'];
+      final videos = items.map((item) => YouTubeVideo.fromVideoJson(item)).toList();
+      final nextPageToken = response.data['nextPageToken'] as String?;
+
+      return YouTubeSearchResult(
+        videos: videos,
+        nextPageToken: nextPageToken,
+      );
+    } catch (e) {
+      throw Exception('Failed to get popular videos: $e');
+    }
+  }
+
+  Future<List<YouTubeVideo>> getShorts({int maxResults = 20}) async {
+    try {
+      final response = await _dio.get(
+        'https://www.googleapis.com/youtube/v3/search',
         queryParameters: {
           'part': 'snippet',
-          'chart': 'mostPopular',
+          'q': 'shorts',
+          'type': 'video',
+          'videoDuration': 'short',
           'maxResults': maxResults,
-          'regionCode': regionCode,
-          // videoCategoryId를 제거하여 모든 카테고리의 인기 동영상을 가져옵니다
           'key': AppConfig.youtubeApiKey,
+          'safeSearch': 'strict',
+          'videoEmbeddable': 'true',
+          'order': 'date',
         },
       );
 
       final List<dynamic> items = response.data['items'];
-      return items.map((item) => YouTubeVideo.fromVideoJson(item)).toList();
+      return items.map((item) => YouTubeVideo.fromJson(item)).toList();
     } catch (e) {
-      throw Exception('Failed to get popular videos: $e');
+      throw Exception('Failed to get shorts: $e');
     }
   }
 
@@ -78,6 +118,111 @@ class YouTubeService {
         r'(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})');
     final match = regex.firstMatch(url);
     return match?.group(1) ?? '';
+  }
+
+  // 개인화된 추천 영상 가져오기
+  Future<YouTubeSearchResult> getPersonalizedRecommendations({
+    int maxResults = 20,
+    String? pageToken,
+  }) async {
+    try {
+      final accessToken = await GoogleAuthService().getAccessToken();
+
+      // 로그인하지 않았거나 토큰이 없으면 인기 영상 반환
+      if (accessToken == null) {
+        return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
+      }
+
+      // 1. 사용자의 구독 채널 가져오기
+      final channelIds = await _getUserSubscriptionChannelIds(accessToken);
+
+      if (channelIds.isEmpty) {
+        // 구독 채널이 없으면 인기 영상 반환
+        return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
+      }
+
+      // 2. 구독 채널의 최신 영상 가져오기
+      final videos = await _getVideosFromChannels(channelIds, maxResults, pageToken);
+
+      return videos;
+    } catch (e) {
+      // 오류 발생 시 인기 영상으로 폴백
+      return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
+    }
+  }
+
+  // 사용자의 구독 채널 ID 목록 가져오기
+  Future<List<String>> _getUserSubscriptionChannelIds(String accessToken) async {
+    try {
+      final response = await _dio.get(
+        'https://www.googleapis.com/youtube/v3/subscriptions',
+        queryParameters: {
+          'part': 'snippet',
+          'mine': 'true',
+          'maxResults': 50,
+          'key': AppConfig.youtubeApiKey,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+          },
+        ),
+      );
+
+      final List<dynamic> items = response.data['items'] ?? [];
+      return items
+          .map((item) => item['snippet']['resourceId']['channelId'] as String)
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // 특정 채널들의 최신 영상 가져오기
+  Future<YouTubeSearchResult> _getVideosFromChannels(
+    List<String> channelIds,
+    int maxResults,
+    String? pageToken,
+  ) async {
+    try {
+      // 채널 ID를 랜덤하게 섞어서 다양성 확보
+      final shuffledChannels = List<String>.from(channelIds)..shuffle();
+      final selectedChannels = shuffledChannels.take(10).toList();
+
+      final queryParams = {
+        'part': 'snippet',
+        'type': 'video',
+        'maxResults': maxResults,
+        'order': 'date', // 최신순
+        'videoEmbeddable': 'true',
+        'key': AppConfig.youtubeApiKey,
+      };
+
+      // 여러 채널의 영상을 검색
+      if (selectedChannels.isNotEmpty) {
+        queryParams['channelId'] = selectedChannels.join(',');
+      }
+
+      if (pageToken != null) {
+        queryParams['pageToken'] = pageToken;
+      }
+
+      final response = await _dio.get(
+        'https://www.googleapis.com/youtube/v3/search',
+        queryParameters: queryParams,
+      );
+
+      final List<dynamic> items = response.data['items'] ?? [];
+      final videos = items.map((item) => YouTubeVideo.fromJson(item)).toList();
+      final nextPageToken = response.data['nextPageToken'] as String?;
+
+      return YouTubeSearchResult(
+        videos: videos,
+        nextPageToken: nextPageToken,
+      );
+    } catch (e) {
+      throw Exception('Failed to get videos from channels: $e');
+    }
   }
 }
 
@@ -176,4 +321,14 @@ class YouTubeVideoDetails {
 
     return Duration(hours: hours, minutes: minutes, seconds: seconds);
   }
+}
+
+class YouTubeSearchResult {
+  final List<YouTubeVideo> videos;
+  final String? nextPageToken;
+
+  YouTubeSearchResult({
+    required this.videos,
+    this.nextPageToken,
+  });
 }
