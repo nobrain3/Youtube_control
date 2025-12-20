@@ -169,7 +169,12 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         title: Row(
           children: [
-            Icon(Icons.play_circle_filled, color: Colors.red, size: 28.sp),
+            Image.asset(
+              'assets/app_icon.png',
+              width: 28.w,
+              height: 28.w,
+              fit: BoxFit.contain,
+            ),
             SizedBox(width: 4.w),
             Text(
               'YouTube',
