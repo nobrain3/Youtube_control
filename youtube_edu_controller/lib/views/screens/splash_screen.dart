@@ -78,10 +78,14 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ],
                 ),
-                child: Icon(
-                  Icons.school,
-                  size: 60.sp,
-                  color: Theme.of(context).colorScheme.primary,
+                child: Padding(
+                  padding: EdgeInsets.all(30.w),
+                  child: Image.asset(
+                    'assets/app_icon.png',
+                    width: 60.sp,
+                    height: 60.sp,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
               SizedBox(height: 32.h),
