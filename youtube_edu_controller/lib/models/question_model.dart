@@ -10,6 +10,7 @@ class Question {
   final List<String> options;
   final String correctAnswer;
   final String explanation;
+  final String? hint;
   final String createdBy;
 
   Question({
@@ -22,6 +23,7 @@ class Question {
     required this.options,
     required this.correctAnswer,
     required this.explanation,
+    this.hint,
     required this.createdBy,
   });
 
@@ -38,6 +40,7 @@ class Question {
       options: List<String>.from(json['options']),
       correctAnswer: json['correctAnswer'],
       explanation: json['explanation'],
+      hint: json['hint'],
       createdBy: json['createdBy'],
     );
   }
@@ -53,6 +56,7 @@ class Question {
       'options': options,
       'correctAnswer': correctAnswer,
       'explanation': explanation,
+      'hint': hint,
       'createdBy': createdBy,
     };
   }

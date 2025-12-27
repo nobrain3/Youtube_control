@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../widgets/player/youtube_player_widget.dart';
 import '../../services/api/youtube_service.dart';
 import '../../services/storage/local_storage_service.dart';
+import '../../services/timer/learning_timer_service.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
   final String videoId;
@@ -23,14 +24,19 @@ class PlayerScreen extends ConsumerStatefulWidget {
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   YouTubeVideoDetails? _videoDetails;
   bool _isLoading = true;
-  Duration _watchedTime = Duration.zero;
-  final Duration _studyInterval = const Duration(minutes: 15);
 
   @override
   void initState() {
     super.initState();
     _loadVideoDetails();
-    _setupStudyTimer();
+    _startLearningTimer();
+  }
+
+  void _startLearningTimer() {
+    // 학습 타이머 시작
+    Future.delayed(Duration.zero, () {
+      ref.read(learningTimerProvider.notifier).startSession();
+    });
   }
 
   Future<void> _loadVideoDetails() async {
@@ -70,22 +76,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  void _setupStudyTimer() {
-    // TODO: 사용자 설정에서 학습 간격 가져오기
-    // 현재는 15분으로 고정
-  }
-
-  void _onPositionChanged(Duration position) {
-    setState(() {
-      _watchedTime = position;
-    });
-
-    // 학습 타이머 체크
-    if (_watchedTime.inMinutes > 0 &&
-        _watchedTime.inMinutes % _studyInterval.inMinutes == 0 &&
-        _watchedTime.inSeconds % 60 == 0) {
-      _showStudyPopup();
-    }
+  @override
+  void dispose() {
+    ref.read(learningTimerProvider.notifier).stopSession();
+    super.dispose();
   }
 
   void _showStudyPopup() {
@@ -94,24 +88,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('학습 시간이에요! 📚'),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('잠시 동영상을 멈추고 문제를 풀어볼까요?'),
-            SizedBox(height: 16.h),
-            Text(
-              '시청 시간: ${_formatDuration(_watchedTime)}',
-              style: TextStyle(
-                fontSize: 14.sp,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-              ),
-            ),
+            Text('잠시 동영상을 멈추고 문제를 풀어볼까요?'),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
+              // 나중에를 선택해도 타이머는 계속 진행
+              ref.read(learningTimerProvider.notifier).completeBreak();
             },
             child: const Text('나중에'),
           ),
@@ -127,13 +115,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     );
   }
 
-  void _navigateToQuestion() {
-    context.push('/question', extra: {
+  Future<void> _navigateToQuestion() async {
+    // 타이머 일시정지
+    ref.read(learningTimerProvider.notifier).pauseSession();
+
+    await context.push('/question', extra: {
       'videoId': widget.videoId,
       'videoTitle': widget.videoTitle,
-      'currentTime': _watchedTime.inSeconds,
-      'watchedDuration': _watchedTime.inMinutes,
+      'currentTime': 0,
+      'watchedDuration': 0,
     });
+
+    // 퀴즈에서 돌아왔을 때 타이머 재시작
+    if (mounted) {
+      ref.read(learningTimerProvider.notifier).completeBreak();
+      ref.read(learningTimerProvider.notifier).startSession();
+    }
   }
 
   String _formatDuration(Duration duration) {
@@ -150,6 +147,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final timerState = ref.watch(learningTimerProvider);
+
+    // 학습 브레이크 타임인 경우 팝업 표시
+    if (timerState.isBreakTime) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showStudyPopup();
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -176,7 +182,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                   YouTubePlayerWidget(
                     videoId: widget.videoId,
                     videoTitle: widget.videoTitle,
-                    onPositionChanged: _onPositionChanged,
                   ),
 
                   SizedBox(height: 24.h),
@@ -195,6 +200,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Widget _buildStudyTimerInfo() {
+    final timerState = ref.watch(learningTimerProvider);
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16.w),
@@ -225,11 +232,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           ),
           SizedBox(height: 8.h),
           Text(
-            '시청 시간: ${_formatDuration(_watchedTime)}',
+            '현재 세션: ${_formatDuration(timerState.currentSession)}',
             style: TextStyle(fontSize: 14.sp),
           ),
           Text(
-            '다음 문제까지: ${_formatDuration(Duration(minutes: _studyInterval.inMinutes - (_watchedTime.inMinutes % _studyInterval.inMinutes)))}',
+            '다음 문제까지: ${_formatDuration(timerState.timeUntilBreak)}',
             style: TextStyle(fontSize: 14.sp),
           ),
         ],
