@@ -29,14 +29,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void initState() {
     super.initState();
     _loadVideoDetails();
-    _startLearningTimer();
-  }
-
-  void _startLearningTimer() {
-    // 학습 타이머 시작
-    Future.delayed(Duration.zero, () {
-      ref.read(learningTimerProvider.notifier).startSession();
-    });
   }
 
   Future<void> _loadVideoDetails() async {

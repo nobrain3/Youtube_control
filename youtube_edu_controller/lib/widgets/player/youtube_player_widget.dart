@@ -67,7 +67,13 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
     }
 
     if (_controller.value.playerState == PlayerState.playing) {
-      ref.read(learningTimerProvider.notifier).resumeSession();
+      final timerState = ref.read(learningTimerProvider);
+      // 타이머가 아직 시작되지 않았으면 시작, 이미 시작되었으면 재개
+      if (!timerState.isActive && timerState.currentSession.inSeconds == 0) {
+        ref.read(learningTimerProvider.notifier).startSession();
+      } else {
+        ref.read(learningTimerProvider.notifier).resumeSession();
+      }
     } else if (_controller.value.playerState == PlayerState.paused) {
       ref.read(learningTimerProvider.notifier).pauseSession();
     }
