@@ -97,6 +97,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           ),
           ElevatedButton(
             onPressed: () {
+              // 먼저 브레이크 완료 처리하여 isBreakTime을 false로 만듦
+              ref.read(learningTimerProvider.notifier).completeBreak();
               Navigator.of(context).pop();
               _navigateToQuestion();
             },
@@ -141,12 +143,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   Widget build(BuildContext context) {
     final timerState = ref.watch(learningTimerProvider);
 
-    // 학습 브레이크 타임인 경우 팝업 표시
-    if (timerState.isBreakTime) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showStudyPopup();
-      });
-    }
+    // 학습 브레이크 타임 변경 감지하여 팝업 표시 (한 번만)
+    ref.listen<LearningTimerState>(
+      learningTimerProvider,
+      (previous, next) {
+        if (next.isBreakTime && (previous == null || !previous.isBreakTime)) {
+          _showStudyPopup();
+        }
+      },
+    );
 
     return Scaffold(
       appBar: AppBar(
