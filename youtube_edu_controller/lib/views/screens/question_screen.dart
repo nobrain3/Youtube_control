@@ -551,6 +551,10 @@ class _QuestionScreenState extends State<QuestionScreen>
   }
 
   Widget _buildHint() {
+    if (_currentQuestion?.hint == null) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(16.w),
@@ -573,10 +577,11 @@ class _QuestionScreenState extends State<QuestionScreen>
           SizedBox(width: 8.w),
           Expanded(
             child: Text(
-              '힌트: ${_currentQuestion!.explanation}',
+              '💡 힌트: ${_currentQuestion!.hint}',
               style: TextStyle(
                 fontSize: 14.sp,
-                color: Colors.amber[700],
+                color: Colors.amber[900],
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
