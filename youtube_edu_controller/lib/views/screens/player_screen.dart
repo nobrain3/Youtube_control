@@ -324,7 +324,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           children: [
             ListTile(
               title: const Text('문제 출제 간격'),
-              subtitle: Text('${_studyInterval.inMinutes}분'),
+              subtitle: const Text('15초'),
               trailing: const Icon(Icons.edit),
               onTap: () {
                 // TODO: 간격 설정 다이얼로그
