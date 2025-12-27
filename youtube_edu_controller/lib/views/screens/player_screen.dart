@@ -24,6 +24,7 @@ class PlayerScreen extends ConsumerStatefulWidget {
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   YouTubeVideoDetails? _videoDetails;
   bool _isLoading = true;
+  final GlobalKey<ConsumerState<YouTubePlayerWidget>> _playerKey = GlobalKey();
 
   @override
   void initState() {
@@ -120,10 +121,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       'watchedDuration': 0,
     });
 
-    // 퀴즈에서 돌아왔을 때 타이머 재시작
+    // 퀴즈에서 돌아왔을 때 영상 자동 재생 (재생 시 타이머가 자동으로 시작됨)
     if (mounted) {
       ref.read(learningTimerProvider.notifier).completeBreak();
-      ref.read(learningTimerProvider.notifier).startSession();
+      // 영상 재생 - YouTube 플레이어의 play() 메서드 호출
+      final playerState = _playerKey.currentState;
+      if (playerState != null && playerState.mounted) {
+        (playerState as dynamic).play();
+      }
     }
   }
 
@@ -177,6 +182,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 children: [
                   // YouTube Player
                   YouTubePlayerWidget(
+                    key: _playerKey,
                     videoId: widget.videoId,
                     videoTitle: widget.videoTitle,
                   ),
