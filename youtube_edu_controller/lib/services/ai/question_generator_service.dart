@@ -12,6 +12,9 @@ class QuestionGeneratorService {
   final Dio _dio = Dio();
   final Random _random = Random();
 
+  // 세션 중 출제된 문제 추적 (중복 방지)
+  final Set<String> _usedQuestions = {};
+
   // 임시로 하드코딩된 문제들 (실제로는 AI API 사용)
   final Map<String, Map<int, List<Map<String, dynamic>>>> _questionBank = {
     'Mathematics': {
@@ -81,18 +84,54 @@ class QuestionGeneratorService {
     required int grade,
     int? difficulty,
   }) async {
-    try {
-      // 실제 환경에서는 OpenAI API 호출
-      if (AppConfig.openaiApiKey != 'YOUR_OPENAI_API_KEY') {
-        return await _generateQuestionWithAI(subject, grade, difficulty);
-      }
+    const maxAttempts = 10;
+    int attempts = 0;
 
-      // 개발 환경: 하드코딩된 문제 사용
-      return _generateQuestionFromBank(subject, grade, difficulty);
-    } catch (e) {
-      // 오류 발생 시 기본 문제 반환
-      return _generateQuestionFromBank(subject, grade, difficulty);
+    while (attempts < maxAttempts) {
+      try {
+        Question question;
+
+        // 실제 환경에서는 OpenAI API 호출
+        if (AppConfig.openaiApiKey != 'YOUR_OPENAI_API_KEY') {
+          question = await _generateQuestionWithAI(subject, grade, difficulty);
+        } else {
+          // 개발 환경: 하드코딩된 문제 사용
+          question = _generateQuestionFromBank(subject, grade, difficulty);
+        }
+
+        // 중복 체크
+        if (!_usedQuestions.contains(question.questionText)) {
+          _usedQuestions.add(question.questionText);
+          return question;
+        }
+
+        attempts++;
+
+        // 모든 문제를 다 풀었다면 초기화하고 새로운 문제 반환
+        if (attempts >= maxAttempts) {
+          _usedQuestions.clear();
+          _usedQuestions.add(question.questionText);
+          return question;
+        }
+      } catch (e) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          // 오류 발생 시 기본 문제 반환
+          final question = _generateQuestionFromBank(subject, grade, difficulty);
+          _usedQuestions.add(question.questionText);
+          return question;
+        }
+      }
     }
+
+    // 최후의 수단: 기본 문제 반환
+    final question = _generateQuestionFromBank(subject, grade, difficulty);
+    return question;
+  }
+
+  // 세션 초기화 (필요 시 호출)
+  void resetSession() {
+    _usedQuestions.clear();
   }
 
   Future<Question> _generateQuestionWithAI(
