@@ -68,12 +68,12 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
 
     if (_controller.value.playerState == PlayerState.playing) {
       final timerState = ref.read(learningTimerProvider);
-      // 타이머가 아직 시작되지 않았으면 시작, 이미 시작되었으면 재개
-      if (!timerState.isActive && timerState.currentSession.inSeconds == 0) {
+      // 타이머 상태에 따라 명확하게 처리
+      if (!timerState.isActive) {
+        // 타이머가 멈춰있으면 항상 새로 시작
         ref.read(learningTimerProvider.notifier).startSession();
-      } else {
-        ref.read(learningTimerProvider.notifier).resumeSession();
       }
+      // 이미 활성화되어 있으면 아무것도 하지 않음 (계속 실행 중)
     } else if (_controller.value.playerState == PlayerState.paused) {
       ref.read(learningTimerProvider.notifier).pauseSession();
     }
