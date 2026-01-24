@@ -1,11 +1,13 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AppConfig {
   static const String appName = 'YouTube Edu Controller';
   static const String appVersion = '1.0.0';
 
   // API Configuration
   static const String baseUrl = 'https://api.youtubedu.com';
-  static const String youtubeApiKey = 'REDACTED_API_KEY';
-  static const String openaiApiKey = 'YOUR_OPENAI_API_KEY';
+  static String get youtubeApiKey => dotenv.env['YOUTUBE_API_KEY'] ?? '';
+  static String get openaiApiKey => dotenv.env['OPENAI_API_KEY'] ?? '';
 
   // App Settings
   static const int defaultStudyInterval = 15; // minutes
