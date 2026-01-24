@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../config/app_routes.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -9,9 +11,99 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('설정'),
       ),
-      body: const Center(
-        child: Text('Settings Screen - To be implemented'),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        children: [
+          const _SectionHeader(title: '사용자 정보'),
+          Card(
+            child: Column(
+              children: [
+                _SettingsTile(
+                  icon: Icons.school_outlined,
+                  title: '나이/학년 설정',
+                  subtitle: '초등~고등 학년 선택',
+                  onTap: () => context.push(AppRoutes.settingsGrade),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const _SectionHeader(title: '학습 설정'),
+          Card(
+            child: Column(
+              children: [
+                _SettingsTile(
+                  icon: Icons.timer_outlined,
+                  title: '플레이 시간(타이머 간격)',
+                  subtitle: '퀴즈 출제 간격 조정',
+                  onTap: () => context.push(AppRoutes.settingsTimer),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          const _SectionHeader(title: '앱 정보'),
+          Card(
+            child: Column(
+              children: const [
+                _SettingsTile(
+                  icon: Icons.info_outline,
+                  title: '버전',
+                  subtitle: 'v0.1.0',
+                  showChevron: false,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+      ),
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  const _SettingsTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+    this.showChevron = true,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+  final bool showChevron;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: showChevron ? const Icon(Icons.chevron_right) : null,
+      onTap: onTap,
     );
   }
 }

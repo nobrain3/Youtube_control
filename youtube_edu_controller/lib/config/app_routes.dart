@@ -8,6 +8,8 @@ import '../views/screens/player_screen.dart';
 import '../views/screens/question_screen.dart';
 import '../views/screens/profile_screen.dart';
 import '../views/screens/settings_screen.dart';
+import '../views/screens/grade_settings_screen.dart';
+import '../views/screens/timer_settings_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -19,6 +21,8 @@ class AppRoutes {
   static const String question = '/question';
   static const String profile = '/profile';
   static const String settings = '/settings';
+  static const String settingsGrade = '/home/settings/grade';
+  static const String settingsTimer = '/home/settings/timer';
 
   static final GoRouter router = GoRouter(
     initialLocation: splash,
@@ -57,6 +61,18 @@ class AppRoutes {
             path: 'settings',
             name: 'settings',
             builder: (context, state) => const SettingsScreen(),
+            routes: [
+              GoRoute(
+                path: 'grade',
+                name: 'settingsGrade',
+                builder: (context, state) => const GradeSettingsScreen(),
+              ),
+              GoRoute(
+                path: 'timer',
+                name: 'settingsTimer',
+                builder: (context, state) => const TimerSettingsScreen(),
+              ),
+            ],
           ),
         ],
       ),
