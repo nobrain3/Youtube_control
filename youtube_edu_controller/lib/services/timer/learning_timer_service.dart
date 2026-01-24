@@ -30,10 +30,10 @@ class LearningTimerService extends StateNotifier<LearningTimerState> {
       state = state.copyWith(
         currentSession: _currentSession,
         isActive: true,
-        timeUntilBreak: Duration(seconds: 15) - _currentSession,
+        timeUntilBreak: Duration(minutes: _intervalMinutes) - _currentSession,
       );
 
-      if (_currentSession.inSeconds >= 15) {
+      if (_currentSession.inSeconds >= _intervalMinutes * 60) {
         _triggerLearningBreak();
       }
     });
