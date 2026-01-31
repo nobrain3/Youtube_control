@@ -1,9 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../config/app_config.dart';
 import '../../config/app_routes.dart';
+import '../../services/storage/local_storage_service.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  int _userGrade = 3;
+  int _studyInterval = AppConfig.defaultStudyInterval;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final storage = LocalStorageService();
+    final grade = storage.getUserGrade();
+    final interval = storage.getStudyInterval();
+    if (!mounted) return;
+    setState(() {
+      _userGrade = grade;
+      _studyInterval = interval;
+    });
+  }
+
+  Future<void> _openSettings(String route) async {
+    await context.push(route);
+    await _loadSettings();
+  }
+
+  String _gradeLabel(int grade) {
+    return AppConfig.gradeLevels[grade] ?? '선택 안 함';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,8 +57,8 @@ class SettingsScreen extends StatelessWidget {
                 _SettingsTile(
                   icon: Icons.school_outlined,
                   title: '나이/학년 설정',
-                  subtitle: '초등~고등 학년 선택',
-                  onTap: () => context.push(AppRoutes.settingsGrade),
+                  subtitle: _gradeLabel(_userGrade),
+                  onTap: () => _openSettings(AppRoutes.settingsGrade),
                 ),
               ],
             ),
@@ -35,8 +71,8 @@ class SettingsScreen extends StatelessWidget {
                 _SettingsTile(
                   icon: Icons.timer_outlined,
                   title: '플레이 시간(타이머 간격)',
-                  subtitle: '퀴즈 출제 간격 조정',
-                  onTap: () => context.push(AppRoutes.settingsTimer),
+                  subtitle: '${_studyInterval}분 간격',
+                  onTap: () => _openSettings(AppRoutes.settingsTimer),
                 ),
               ],
             ),
@@ -49,7 +85,7 @@ class SettingsScreen extends StatelessWidget {
                 _SettingsTile(
                   icon: Icons.info_outline,
                   title: '버전',
-                  subtitle: 'v0.1.0',
+                  subtitle: 'v${AppConfig.appVersion}',
                   showChevron: false,
                 ),
               ],
