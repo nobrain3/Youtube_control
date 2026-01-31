@@ -125,6 +125,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   void _onItemTapped(int index) {
+    if (index == 3) {
+      context.push('/home/settings');
+      return;
+    }
+
     setState(() {
       _selectedIndex = index;
       _currentPageIndex = index;
@@ -243,6 +248,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.video_library_outlined),
             activeIcon: Icon(Icons.video_library),
             label: '보관함',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: '설정',
           ),
         ],
       ),
