@@ -85,7 +85,7 @@ class _TimerSettingsScreenState extends State<TimerSettingsScreen> {
                         '현재 간격',
                         style: TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      Text('${_studyInterval}분'),
+                      Text('$_studyInterval분'),
                     ],
                   ),
                   Slider(
@@ -93,7 +93,7 @@ class _TimerSettingsScreenState extends State<TimerSettingsScreen> {
                     min: minInterval,
                     max: maxInterval,
                     divisions: divisions,
-                    label: '${_studyInterval}분',
+                    label: '$_studyInterval분',
                     onChanged: _isSaving
                         ? null
                         : (value) {
@@ -130,7 +130,7 @@ class _TimerSettingsScreenState extends State<TimerSettingsScreen> {
             children: [
               for (final interval in _presetIntervals)
                 ChoiceChip(
-                  label: Text('${interval}분'),
+                  label: Text('$interval분'),
                   selected: _studyInterval == interval,
                   onSelected: _isSaving
                       ? null
