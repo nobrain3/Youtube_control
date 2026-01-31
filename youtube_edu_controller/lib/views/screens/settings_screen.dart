@@ -71,7 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SettingsTile(
                   icon: Icons.timer_outlined,
                   title: '플레이 시간(타이머 간격)',
-                  subtitle: '${_studyInterval}분 간격',
+                  subtitle: '$_studyInterval분 간격',
                   onTap: () => _openSettings(AppRoutes.settingsTimer),
                 ),
               ],
