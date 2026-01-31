@@ -59,21 +59,21 @@ class _GradeSettingsScreenState extends State<GradeSettingsScreen> {
           ),
           const SizedBox(height: 12),
           Card(
-            child: Column(
-              children: [
-                for (final entry in gradeEntries)
-                  RadioListTile<int>(
-                    value: entry.key,
-                    groupValue: _selectedGrade,
-                    title: Text(entry.value),
-                    onChanged: _isSaving
-                        ? null
-                        : (value) {
-                            if (value == null) return;
-                            _saveGrade(value);
-                          },
-                  ),
-              ],
+            child: RadioGroup<int>(
+              groupValue: _selectedGrade,
+              onChanged: (value) {
+                if (_isSaving || value == null) return;
+                _saveGrade(value);
+              },
+              child: Column(
+                children: [
+                  for (final entry in gradeEntries)
+                    RadioListTile<int>(
+                      value: entry.key,
+                      title: Text(entry.value),
+                    ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
