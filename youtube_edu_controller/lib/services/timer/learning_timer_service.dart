@@ -84,9 +84,18 @@ class LearningTimerService extends StateNotifier<LearningTimerState> {
     );
   }
 
+  /// 명시적으로 타이머 리소스를 정리합니다.
+  /// Provider가 dispose되지 않는 상황에서도 호출할 수 있습니다.
+  void cleanup() {
+    _timer?.cancel();
+    _timer = null;
+    _isActive = false;
+    _currentSession = Duration.zero;
+  }
+
   @override
   void dispose() {
-    _timer?.cancel();
+    cleanup();
     super.dispose();
   }
 }
