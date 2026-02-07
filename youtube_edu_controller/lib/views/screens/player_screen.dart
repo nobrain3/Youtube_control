@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../widgets/player/youtube_player_widget.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../services/api/youtube_service.dart';
 import '../../services/storage/local_storage_service.dart';
 import '../../services/timer/learning_timer_service.dart';
@@ -22,15 +22,55 @@ class PlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _PlayerScreenState extends ConsumerState<PlayerScreen> {
+  late YoutubePlayerController _controller;
   YouTubeVideoDetails? _videoDetails;
   bool _isLoading = true;
-  final GlobalKey<ConsumerState<YouTubePlayerWidget>> _playerKey = GlobalKey();
+  bool _isPlayerReady = false;
 
   @override
   void initState() {
     super.initState();
+    _initializePlayer();
     _loadVideoDetails();
     Future(() => _loadTimerInterval());
+  }
+
+  void _initializePlayer() {
+    _controller = YoutubePlayerController(
+      initialVideoId: widget.videoId,
+      flags: const YoutubePlayerFlags(
+        autoPlay: false,
+        mute: false,
+        disableDragSeek: false,
+        loop: false,
+        isLive: false,
+        forceHD: false,
+        enableCaption: true,
+      ),
+    );
+
+    _controller.addListener(_onPlayerStateChange);
+  }
+
+  void _onPlayerStateChange() {
+    if (_controller.value.isReady && !_isPlayerReady) {
+      setState(() {
+        _isPlayerReady = true;
+      });
+    }
+
+    if (_controller.value.playerState == PlayerState.ended) {
+      ref.read(learningTimerProvider.notifier).stopSession();
+    }
+
+    if (_controller.value.playerState == PlayerState.playing) {
+      final timerState = ref.read(learningTimerProvider);
+      if (!timerState.isActive) {
+        ref.read(learningTimerProvider.notifier).startSession();
+      }
+    } else if (_controller.value.playerState == PlayerState.paused) {
+      ref.read(learningTimerProvider.notifier).pauseSession();
+    }
   }
 
   void _loadTimerInterval() {
@@ -46,7 +86,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _isLoading = false;
       });
 
-      // 시청 기록 저장
       await _saveToWatchHistory(videoDetails);
     } catch (e) {
       setState(() {
@@ -70,13 +109,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         'description': videoDetails.description,
       });
     } catch (e) {
-      // 시청 기록 저장 실패는 사용자에게 표시하지 않음
       debugPrint('Failed to save watch history: $e');
     }
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onPlayerStateChange);
+    _controller.dispose();
     ref.read(learningTimerProvider.notifier).stopSession();
     super.dispose();
   }
@@ -97,14 +137,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // 나중에를 선택해도 타이머는 계속 진행
               ref.read(learningTimerProvider.notifier).completeBreak();
             },
             child: const Text('나중에'),
           ),
           ElevatedButton(
             onPressed: () {
-              // 먼저 브레이크 완료 처리하여 isBreakTime을 false로 만듦
               ref.read(learningTimerProvider.notifier).completeBreak();
               Navigator.of(context).pop();
               _navigateToQuestion();
@@ -117,8 +155,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Future<void> _navigateToQuestion() async {
-    // 타이머 일시정지
     ref.read(learningTimerProvider.notifier).pauseSession();
+    _controller.pause();
 
     await context.push('/question', extra: {
       'videoId': widget.videoId,
@@ -127,23 +165,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       'watchedDuration': 0,
     });
 
-    // 퀴즈에서 돌아왔을 때 영상 자동 재생 (재생 시 타이머가 자동으로 시작됨)
     if (mounted) {
       ref.read(learningTimerProvider.notifier).completeBreak();
-      // 영상 재생 - YouTube 플레이어의 play() 메서드 호출
-      _playVideo();
-    }
-  }
-
-  void _playVideo() {
-    try {
-      final playerState = _playerKey.currentState;
-      if (playerState != null && playerState.mounted) {
-        // YouTubePlayerWidget의 play() 메서드 호출
-        (playerState as dynamic).play();
-      }
-    } catch (e) {
-      debugPrint('Failed to play video: $e');
+      _controller.play();
     }
   }
 
@@ -161,59 +185,91 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final timerState = ref.watch(learningTimerProvider);
-
-    // 학습 브레이크 타임 변경 감지하여 팝업 표시 (한 번만)
     ref.listen<LearningTimerState>(
       learningTimerProvider,
       (previous, next) {
         if (next.isBreakTime && (previous == null || !previous.isBreakTime)) {
+          _controller.pause();
           _showStudyPopup();
         }
       },
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.videoTitle.isNotEmpty ? widget.videoTitle : '동영상 재생',
-          style: TextStyle(fontSize: 16.sp),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              _showSettingsDialog();
-            },
+    return YoutubePlayerBuilder(
+      player: YoutubePlayer(
+        controller: _controller,
+        showVideoProgressIndicator: true,
+        progressIndicatorColor: Theme.of(context).colorScheme.primary,
+        topActions: [
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              widget.videoTitle,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
           ),
         ],
+        onReady: () {
+          setState(() {
+            _isPlayerReady = true;
+          });
+        },
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(16.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // YouTube Player
-                  YouTubePlayerWidget(
-                    key: _playerKey,
-                    videoId: widget.videoId,
-                    videoTitle: widget.videoTitle,
-                  ),
-
-                  SizedBox(height: 24.h),
-
-                  // Study Timer Info
-                  _buildStudyTimerInfo(),
-
-                  SizedBox(height: 24.h),
-
-                  // Video Info
-                  if (_videoDetails != null) _buildVideoInfo(),
-                ],
-              ),
+      builder: (context, player) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(
+              widget.videoTitle.isNotEmpty ? widget.videoTitle : '동영상 재생',
+              style: TextStyle(fontSize: 16.sp),
             ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () {
+                  _showSettingsDialog();
+                },
+              ),
+            ],
+          ),
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  padding: EdgeInsets.all(16.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // YouTube Player
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(12.r),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12.r),
+                          child: player,
+                        ),
+                      ),
+
+                      SizedBox(height: 24.h),
+
+                      // Study Timer Info
+                      _buildStudyTimerInfo(),
+
+                      SizedBox(height: 24.h),
+
+                      // Video Info
+                      if (_videoDetails != null) _buildVideoInfo(),
+                    ],
+                  ),
+                ),
+        );
+      },
     );
   }
 
