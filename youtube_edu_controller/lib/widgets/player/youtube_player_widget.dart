@@ -130,54 +130,59 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
       }
     });
 
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          height: 200.h,
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(12.r),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12.r),
-            child: YoutubePlayer(
-              controller: _controller,
-              showVideoProgressIndicator: true,
-              progressIndicatorColor: Theme.of(context).colorScheme.primary,
-              topActions: [
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.videoTitle,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-              ],
-              onReady: () {
-                setState(() {
-                  _isPlayerReady = true;
-                });
-              },
+    return YoutubePlayerBuilder(
+      player: YoutubePlayer(
+        controller: _controller,
+        showVideoProgressIndicator: true,
+        progressIndicatorColor: Theme.of(context).colorScheme.primary,
+        topActions: [
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              widget.videoTitle,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
-        ),
-        if (_isPlayerReady) ...[
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 8.h),
-            child: _buildTimerDisplay(timerState),
-          ),
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 8.h),
-            child: _buildCustomControls(),
-          ),
         ],
-      ],
+        onReady: () {
+          setState(() {
+            _isPlayerReady = true;
+          });
+        },
+      ),
+      builder: (context, player) {
+        return Column(
+          children: [
+            Container(
+              width: double.infinity,
+              height: 200.h,
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12.r),
+                child: player,
+              ),
+            ),
+            if (_isPlayerReady) ...[
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.h),
+                child: _buildTimerDisplay(timerState),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.h),
+                child: _buildCustomControls(),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 
