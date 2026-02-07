@@ -30,7 +30,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void initState() {
     super.initState();
     _loadVideoDetails();
-    _loadTimerInterval();
+    Future(() => _loadTimerInterval());
   }
 
   void _loadTimerInterval() {
