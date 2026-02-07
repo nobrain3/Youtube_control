@@ -11,8 +11,8 @@ class AppConfig {
 
   // App Settings
   static const int defaultStudyInterval = 15; // minutes
-  static const int minStudyInterval = 5;
-  static const int maxStudyInterval = 60;
+  static const int minStudyInterval = 1;
+  static const int maxStudyInterval = 600;
   static const int maxRetryAttempts = 3;
 
   // Grade Levels

@@ -30,6 +30,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void initState() {
     super.initState();
     _loadVideoDetails();
+    Future(() => _loadTimerInterval());
+  }
+
+  void _loadTimerInterval() {
+    final interval = LocalStorageService().getStudyInterval();
+    ref.read(learningTimerProvider.notifier).setInterval(interval);
   }
 
   Future<void> _loadVideoDetails() async {
