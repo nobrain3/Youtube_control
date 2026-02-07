@@ -107,10 +107,8 @@ class QuestionGeneratorService {
 
         attempts++;
 
-        // 모든 문제를 다 풀었다면 초기화하고 새로운 문제 반환
+        // 최대 시도 횟수 도달 시 중복이어도 반환 (초기화하지 않음)
         if (attempts >= maxAttempts) {
-          _usedQuestions.clear();
-          _usedQuestions.add(question.questionText);
           return question;
         }
       } catch (e) {
@@ -163,7 +161,19 @@ class QuestionGeneratorService {
         },
       );
 
-      final data = json.decode(response.data['choices'][0]['message']['content']);
+      final Map<String, dynamic> data;
+      try {
+        data = json.decode(response.data['choices'][0]['message']['content']);
+      } catch (e) {
+        throw Exception('Failed to parse AI response: $e');
+      }
+
+      // 필수 필드 검증
+      if (data['question'] == null ||
+          data['options'] == null ||
+          data['correctAnswer'] == null) {
+        throw Exception('Invalid AI response format: missing required fields');
+      }
 
       return Question(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
