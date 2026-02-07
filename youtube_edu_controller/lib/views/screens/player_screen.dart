@@ -131,10 +131,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     if (mounted) {
       ref.read(learningTimerProvider.notifier).completeBreak();
       // 영상 재생 - YouTube 플레이어의 play() 메서드 호출
+      _playVideo();
+    }
+  }
+
+  void _playVideo() {
+    try {
       final playerState = _playerKey.currentState;
       if (playerState != null && playerState.mounted) {
+        // YouTubePlayerWidget의 play() 메서드 호출
         (playerState as dynamic).play();
       }
+    } catch (e) {
+      debugPrint('Failed to play video: $e');
     }
   }
 
