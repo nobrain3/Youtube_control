@@ -357,11 +357,14 @@ class _QuestionScreenState extends State<QuestionScreen>
     );
   }
 
+  bool _sessionSaved = false;
+
   @override
   void dispose() {
     _progressController.dispose();
     _bounceController.dispose();
-    _saveStudySession();
+    // dispose에서는 비동기 작업을 수행하지 않음
+    // _saveStudySession()은 _returnToVideo()에서 이미 호출됨
     super.dispose();
   }
 
@@ -719,13 +722,16 @@ class _QuestionScreenState extends State<QuestionScreen>
     );
   }
 
-  void _returnToVideo() {
-    _saveStudySession();
-    context.pop();
+  Future<void> _returnToVideo() async {
+    await _saveStudySession();
+    if (mounted) {
+      context.pop();
+    }
   }
 
   Future<void> _saveStudySession() async {
-    if (_currentSession == null) return;
+    if (_currentSession == null || _sessionSaved) return;
+    _sessionSaved = true;
 
     try {
       final storage = LocalStorageService();

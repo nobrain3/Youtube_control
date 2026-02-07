@@ -200,11 +200,28 @@ class LocalStorageService {
   }
 
   // Watch History 관련 메서드
+  // 빠른 중복 체크를 위한 캐시
+  Set<String>? _watchedVideoIds;
+
   Future<void> addToWatchHistory(Map<String, dynamic> videoData) async {
+    final videoId = videoData['videoId'] as String?;
+    if (videoId == null || videoId.isEmpty) return;
+
     final history = getWatchHistory();
 
-    // 중복 제거 (같은 비디오 ID가 있으면 제거)
-    history.removeWhere((item) => item['videoId'] == videoData['videoId']);
+    // 캐시 초기화 (필요시)
+    _watchedVideoIds ??= history.map((item) => item['videoId'] as String).toSet();
+
+    // O(1) 중복 체크
+    final isDuplicate = _watchedVideoIds!.contains(videoId);
+
+    if (isDuplicate) {
+      // 기존 항목 제거 (위치 업데이트용)
+      history.removeWhere((item) => item['videoId'] == videoId);
+    } else {
+      // 새 비디오 ID 캐시에 추가
+      _watchedVideoIds!.add(videoId);
+    }
 
     // 새 항목을 맨 앞에 추가
     history.insert(0, {
@@ -214,6 +231,13 @@ class LocalStorageService {
 
     // 최대 100개까지만 보관
     if (history.length > 100) {
+      // 제거되는 항목들의 ID를 캐시에서도 제거
+      for (int i = 100; i < history.length; i++) {
+        final removedId = history[i]['videoId'] as String?;
+        if (removedId != null) {
+          _watchedVideoIds!.remove(removedId);
+        }
+      }
       history.removeRange(100, history.length);
     }
 
