@@ -128,35 +128,42 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _showStudyPopup() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('학습 시간이에요! 📚'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('잠시 동영상을 멈추고 문제를 풀어볼까요?'),
+    // 전체화면 모드 확인
+    if (_controller.value.isFullScreen) {
+      // 전체화면일 때는 바로 오버레이 표시
+      _displayQuestionOverlay();
+    } else {
+      // 일반 모드일 때는 다이얼로그 표시
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('학습 시간이에요! 📚'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('잠시 동영상을 멈추고 문제를 풀어볼까요?'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                ref.read(learningTimerProvider.notifier).completeBreak();
+              },
+              child: const Text('나중에'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _displayQuestionOverlay();
+              },
+              child: const Text('문제 풀기'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              ref.read(learningTimerProvider.notifier).completeBreak();
-            },
-            child: const Text('나중에'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _displayQuestionOverlay();
-            },
-            child: const Text('문제 풀기'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 
   void _displayQuestionOverlay() {
@@ -237,7 +244,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       },
     );
 
-    return YoutubePlayerBuilder(
+    return Stack(
+      children: [
+        YoutubePlayerBuilder(
       player: YoutubePlayer(
         controller: _controller,
         showVideoProgressIndicator: true,
@@ -314,13 +323,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       ),
                     ),
 
-              // Question overlay
-              if (_showQuestionOverlay)
+              // Question overlay for normal mode
+              if (_showQuestionOverlay && !_controller.value.isFullScreen)
                 _buildQuestionOverlay(),
             ],
           ),
         );
       },
+    ),
+        // Global question overlay for fullscreen mode
+        if (_showQuestionOverlay && _controller.value.isFullScreen)
+          _buildQuestionOverlay(),
+      ],
     );
   }
 
@@ -476,29 +490,37 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Widget _buildQuestionOverlay() {
-    return Container(
-      color: Colors.black.withOpacity(0.8),
-      child: SafeArea(
-        child: Center(
-          child: Container(
-            margin: EdgeInsets.all(20.w),
-            padding: EdgeInsets.all(24.w),
-            decoration: BoxDecoration(
-              color: Theme.of(context).scaffoldBackgroundColor,
-              borderRadius: BorderRadius.circular(16.r),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 20,
-                  spreadRadius: 5,
-                ),
-              ],
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withOpacity(0.85),
+        child: SafeArea(
+          child: Center(
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.9,
+              constraints: BoxConstraints(
+                maxWidth: 600,
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+              ),
+              padding: EdgeInsets.all(24.w),
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                borderRadius: BorderRadius.circular(16.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 30,
+                    spreadRadius: 10,
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: _isQuestionLoading
+                    ? _buildLoadingContent()
+                    : _currentQuestion != null
+                        ? _buildQuestionContent()
+                        : _buildErrorContent(),
+              ),
             ),
-            child: _isQuestionLoading
-                ? _buildLoadingContent()
-                : _currentQuestion != null
-                    ? _buildQuestionContent()
-                    : _buildErrorContent(),
           ),
         ),
       ),
