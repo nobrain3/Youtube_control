@@ -29,6 +29,11 @@ flutter doctor
   - Git 보안 설정 완료
   - README 보안 가이드 작성
   - 기능명세서 보안 요구사항 추가
+- **전체화면 문제 오버레이 시스템** ✅
+  - 전체화면 모드에서 문제 화면 오버레이로 표시
+  - `player_screen.dart` 아키텍처 재구성
+  - 적응형 UI 시스템 구현 (전체화면/일반 모드)
+  - Stack 기반 레이어링 시스템 도입
 
 ### 🔧 현재 기술 스택
 - **Frontend**: Flutter (Dart)
@@ -63,7 +68,7 @@ youtube_edu_controller/
 │   │       └── local_storage_service.dart # 로컬 데이터
 │   └── views/screens/
 │       ├── home_screen.dart         # 홈화면 ⭐ 자주 수정
-│       ├── player_screen.dart       # 동영상 플레이어
+│       ├── player_screen.dart       # 동영상 플레이어 ⭐ 최근 대폭 수정
 │       ├── question_screen.dart     # 퀴즈 화면
 │       └── settings_screen.dart     # 설정 화면
 ├── .env                             # API 키 (Git 제외) ⚠️ 민감정보
@@ -176,5 +181,48 @@ git push origin 브랜치명
 - 전체 파일 읽기보다는 특정 함수나 클래스만 검색
 - `Grep` 도구 활용해서 필요한 부분만 찾기
 - 수정 후 즉시 테스트해서 재작업 최소화
+
+## 🎬 전체화면 오버레이 시스템 아키텍처
+
+### 핵심 구현 원리
+- **전체화면 감지**: `_controller.value.isFullScreen` 사용
+- **적응형 UI**: 화면 모드에 따른 조건부 렌더링
+- **Stack 레이어링**: YoutubePlayerBuilder + Positioned 오버레이
+
+### 주요 구현 파일
+- **player_screen.dart**: 메인 구현 파일
+  - `_showStudyPopup()`: 전체화면 모드 감지 로직
+  - `_displayQuestionOverlay()`: 오버레이 표시 함수
+  - `_buildQuestionOverlay()`: 오버레이 UI 구성
+  - Stack 기반 이중 레이어 아키텍처
+
+### 기술적 세부사항
+```dart
+// 전체화면 감지 및 조건부 표시
+void _showStudyPopup() {
+  if (_controller.value.isFullScreen) {
+    _displayQuestionOverlay();  // 오버레이 모드
+  } else {
+    showDialog(...);            // 다이얼로그 모드
+  }
+}
+
+// 오버레이 UI 구조
+Stack(
+  children: [
+    YoutubePlayerBuilder(...),    // 비디오 레이어
+    if (_showQuestionOverlay)     // 오버레이 레이어
+      Positioned.fill(
+        child: Container(...),
+      ),
+  ],
+)
+```
+
+### 상태 관리
+- `_showQuestionOverlay`: 오버레이 표시 상태
+- `_currentQuestion`: 현재 문제 데이터
+- `_isQuestionLoading`: 문제 로딩 상태
+- 전체화면/일반 모드 자동 전환 지원
 
 **마지막 업데이트**: 2024-02-14 by Claude Code
