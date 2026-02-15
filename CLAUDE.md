@@ -91,7 +91,7 @@ youtube_edu_controller/
 ### 환경변수 구조
 ```env
 # .env 파일 구조
-YOUTUBE_API_KEY=AIzaSyCmnB-W11Remgn4nP6H8_NRArD26BGYKWc  # 현재 유효
+YOUTUBE_API_KEY=your_actual_youtube_api_key_here  # Google Cloud Console에서 발급
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY  # 아직 미설정
 ```
 
