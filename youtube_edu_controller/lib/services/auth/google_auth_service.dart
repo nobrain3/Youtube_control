@@ -62,7 +62,9 @@ class GoogleAuthService {
       final auth = await _currentUser!.authentication;
       return auth.accessToken;
     } catch (error) {
-      throw Exception('액세스 토큰 가져오기 실패: $error');
+      // 토큰 가져오기 실패 시 null 반환 (fallback 로직이 동작하도록)
+      print('액세스 토큰 가져오기 실패: $error');
+      return null;
     }
   }
 
