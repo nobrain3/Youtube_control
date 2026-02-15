@@ -20,16 +20,17 @@ class YouTubeService {
         'safeSearch': 'strict',
         'videoEmbeddable': 'true',
       };
-
+      
       final response = await _dio.get(
         'https://www.googleapis.com/youtube/v3/search',
         queryParameters: queryParams,
       );
 
-      final List<dynamic> items = response.data['items'];
+      final List<dynamic> items = response.data['items'] ?? [];
       return items.map((item) => YouTubeVideo.fromJson(item)).toList();
     } catch (e) {
-      throw Exception('Failed to search videos: $e');
+      print('Error in searchVideos: $e');
+      throw Exception('동영상 검색에 실패했습니다: ${e.toString()}');
     }
   }
 
@@ -40,6 +41,14 @@ class YouTubeService {
     bool excludeShorts = true,
   }) async {
     try {
+      // API 키 검증
+      if (AppConfig.youtubeApiKey.isEmpty) {
+        print('DEBUG: YouTube API 키가 비어있습니다');
+        throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
+      }
+
+      print('DEBUG: API 키 확인됨 (마지막 4자리: ${AppConfig.youtubeApiKey.substring(AppConfig.youtubeApiKey.length - 4)})');
+
       final queryParams = {
         'part': 'snippet,contentDetails',
         'chart': 'mostPopular',
@@ -51,6 +60,9 @@ class YouTubeService {
       if (pageToken != null) {
         queryParams['pageToken'] = pageToken;
       }
+
+      print('DEBUG: API 요청 시작 - URL: https://www.googleapis.com/youtube/v3/videos');
+      print('DEBUG: 요청 파라미터: $queryParams');
 
       final response = await _dio.get(
         'https://www.googleapis.com/youtube/v3/videos',
@@ -78,12 +90,40 @@ class YouTubeService {
         nextPageToken: nextPageToken,
       );
     } catch (e) {
-      throw Exception('Failed to get popular videos: $e');
+      print('Error in getPopularVideos: $e');
+      if (e is DioException) {
+        print('DEBUG: DioException 상세 정보:');
+        print('  - statusCode: ${e.response?.statusCode}');
+        print('  - statusMessage: ${e.response?.statusMessage}');
+        print('  - data: ${e.response?.data}');
+        print('  - requestOptions: ${e.requestOptions.uri}');
+
+        // API 키 관련 오류 처리
+        if (e.response?.statusCode == 400) {
+          final errorData = e.response?.data;
+          if (errorData != null && errorData['error'] != null) {
+            final errorMessage = errorData['error']['message'] ?? '';
+            if (errorMessage.contains('API key expired')) {
+              throw Exception('YouTube API 키가 만료되었습니다. Google Cloud Console에서 새로운 키를 생성해주세요.');
+            } else if (errorMessage.contains('API key not valid')) {
+              throw Exception('YouTube API 키가 유효하지 않습니다. API 키를 다시 확인해주세요.');
+            } else if (errorMessage.contains('quotaExceeded')) {
+              throw Exception('YouTube API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+            }
+          }
+        }
+      }
+      throw Exception('인기 영상을 불러오는데 실패했습니다: ${e.toString()}');
     }
   }
 
   Future<List<YouTubeVideo>> getShorts({int maxResults = 20}) async {
     try {
+      // API 키 검증
+      if (AppConfig.youtubeApiKey.isEmpty) {
+        throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
+      }
+
       final response = await _dio.get(
         'https://www.googleapis.com/youtube/v3/search',
         queryParameters: {
@@ -99,16 +139,22 @@ class YouTubeService {
         },
       );
 
-      final List<dynamic> items = response.data['items'];
+      final List<dynamic> items = response.data['items'] ?? [];
       return items.map((item) => YouTubeVideo.fromJson(item)).toList();
     } catch (e) {
-      throw Exception('Failed to get shorts: $e');
+      print('Error in getShorts: $e');
+      throw Exception('Shorts를 불러오는데 실패했습니다: ${e.toString()}');
     }
   }
 
   // 개인화된 Shorts 가져오기
   Future<List<YouTubeVideo>> getPersonalizedShorts({int maxResults = 20}) async {
     try {
+      // API 키 검증
+      if (AppConfig.youtubeApiKey.isEmpty) {
+        throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
+      }
+
       final accessToken = await GoogleAuthService().getAccessToken();
 
       // 로그인하지 않았거나 토큰이 없으면 일반 Shorts 반환
@@ -130,6 +176,12 @@ class YouTubeService {
       // 2. 구독 채널의 Shorts 가져오기
       final shorts = await _getShortsFromChannels(channelIds, maxResults);
       print('Retrieved ${shorts.length} personalized shorts');
+
+      // 구독 채널에서 Shorts를 가져오지 못하면 일반 Shorts로 fallback
+      if (shorts.isEmpty) {
+        print('No shorts from subscriptions - using general shorts');
+        return getShorts(maxResults: maxResults);
+      }
 
       return shorts;
     } catch (e) {
@@ -191,6 +243,11 @@ class YouTubeService {
 
   Future<YouTubeVideoDetails> getVideoDetails(String videoId) async {
     try {
+      // API 키 검증
+      if (AppConfig.youtubeApiKey.isEmpty) {
+        throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
+      }
+
       final response = await _dio.get(
         'https://www.googleapis.com/youtube/v3/videos',
         queryParameters: {
@@ -200,14 +257,15 @@ class YouTubeService {
         },
       );
 
-      final List<dynamic> items = response.data['items'];
+      final List<dynamic> items = response.data['items'] ?? [];
       if (items.isEmpty) {
-        throw Exception('Video not found');
+        throw Exception('동영상을 찾을 수 없습니다');
       }
 
       return YouTubeVideoDetails.fromJson(items.first);
     } catch (e) {
-      throw Exception('Failed to get video details: $e');
+      print('Error in getVideoDetails: $e');
+      throw Exception('동영상 정보를 불러오는데 실패했습니다: ${e.toString()}');
     }
   }
 
@@ -225,6 +283,11 @@ class YouTubeService {
     bool excludeShorts = true,
   }) async {
     try {
+      // API 키 검증
+      if (AppConfig.youtubeApiKey.isEmpty) {
+        throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
+      }
+
       final accessToken = await GoogleAuthService().getAccessToken();
 
       // 로그인하지 않았거나 토큰이 없으면 인기 영상 반환
@@ -246,6 +309,12 @@ class YouTubeService {
       // 2. 구독 채널의 최신 영상 가져오기
       final videos = await _getVideosFromChannels(channelIds, maxResults, pageToken);
       print('Retrieved ${videos.videos.length} personalized videos');
+
+      // 구독 채널에서 영상을 가져오지 못하면 인기 영상으로 fallback
+      if (videos.videos.isEmpty) {
+        print('No videos from subscriptions - using popular videos');
+        return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
+      }
 
       return videos;
     } catch (e) {

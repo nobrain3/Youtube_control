@@ -14,6 +14,7 @@ migrate_working_dir/
 
 # Environment Variables
 .env
+*.env
 
 # IntelliJ related
 *.iml
@@ -34,7 +35,12 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+build/
+**/build/
 /coverage/
+
+# Flutter DevTools
+devtools_options.yaml
 
 # Symbolication related
 app.*.symbols
