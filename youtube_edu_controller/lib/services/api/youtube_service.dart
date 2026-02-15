@@ -9,24 +9,21 @@ class YouTubeService {
 
   final Dio _dio = Dio();
 
-  Future<List<YouTubeVideo>> searchVideos(String query, {int maxResults = 20}) async {
+  Future<List<YouTubeVideo>> searchVideos(String query, {int maxResults = 20, bool excludeShorts = true}) async {
     try {
-      // API 키 검증
-      if (AppConfig.youtubeApiKey.isEmpty) {
-        throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
-      }
-
+      final queryParams = {
+        'part': 'snippet',
+        'q': excludeShorts ? '$query -shorts -short' : query,
+        'type': 'video',
+        'maxResults': maxResults,
+        'key': AppConfig.youtubeApiKey,
+        'safeSearch': 'strict',
+        'videoEmbeddable': 'true',
+      };
+      
       final response = await _dio.get(
         'https://www.googleapis.com/youtube/v3/search',
-        queryParameters: {
-          'part': 'snippet',
-          'q': query,
-          'type': 'video',
-          'maxResults': maxResults,
-          'key': AppConfig.youtubeApiKey,
-          'safeSearch': 'strict',
-          'videoEmbeddable': 'true',
-        },
+        queryParameters: queryParams,
       );
 
       final List<dynamic> items = response.data['items'] ?? [];
@@ -41,6 +38,7 @@ class YouTubeService {
     int maxResults = 20,
     String regionCode = 'KR',
     String? pageToken,
+    bool excludeShorts = true,
   }) async {
     try {
       // API 키 검증
@@ -52,9 +50,9 @@ class YouTubeService {
       print('DEBUG: API 키 확인됨 (마지막 4자리: ${AppConfig.youtubeApiKey.substring(AppConfig.youtubeApiKey.length - 4)})');
 
       final queryParams = {
-        'part': 'snippet',
+        'part': 'snippet,contentDetails',
         'chart': 'mostPopular',
-        'maxResults': maxResults,
+        'maxResults': excludeShorts ? maxResults * 2 : maxResults,
         'regionCode': regionCode,
         'key': AppConfig.youtubeApiKey,
       };
@@ -71,17 +69,20 @@ class YouTubeService {
         queryParameters: queryParams,
       );
 
-      print('DEBUG: API 응답 상태: ${response.statusCode}');
-      print('DEBUG: API 응답 데이터 키: ${response.data?.keys}');
+      final List<dynamic> items = response.data['items'];
+      List<YouTubeVideo> videos = items.map((item) => YouTubeVideo.fromVideoJson(item)).toList();
 
-      if (response.data == null) {
-        throw Exception('API 응답이 null입니다');
+      // Shorts 제외 (60초 이하 영상 필터링)
+      if (excludeShorts) {
+        videos = videos.where((video) {
+          final item = items.firstWhere((item) => item['id'] == video.id);
+          final duration = item['contentDetails']['duration'] as String;
+          final parsedDuration = YouTubeVideoDetails._parseDuration(duration);
+          return parsedDuration.inSeconds > 60;
+        }).toList();
+        videos = videos.take(maxResults).toList();
       }
 
-      final List<dynamic> items = response.data['items'] ?? [];
-      print('DEBUG: 받아온 영상 개수: ${items.length}');
-
-      final videos = items.map((item) => YouTubeVideo.fromVideoJson(item)).toList();
       final nextPageToken = response.data['nextPageToken'] as String?;
 
       return YouTubeSearchResult(
@@ -279,6 +280,7 @@ class YouTubeService {
   Future<YouTubeSearchResult> getPersonalizedRecommendations({
     int maxResults = 20,
     String? pageToken,
+    bool excludeShorts = true,
   }) async {
     try {
       // API 키 검증
@@ -291,7 +293,7 @@ class YouTubeService {
       // 로그인하지 않았거나 토큰이 없으면 인기 영상 반환
       if (accessToken == null) {
         print('No access token - using popular videos');
-        return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
+        return getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
       }
 
       // 1. 사용자의 구독 채널 가져오기
@@ -301,7 +303,7 @@ class YouTubeService {
       if (channelIds.isEmpty) {
         // 구독 채널이 없으면 인기 영상 반환
         print('No subscriptions - using popular videos');
-        return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
+        return getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
       }
 
       // 2. 구독 채널의 최신 영상 가져오기
@@ -318,7 +320,7 @@ class YouTubeService {
     } catch (e) {
       // 오류 발생 시 인기 영상으로 폴백
       print('Error in personalized recommendations: $e');
-      return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
+      return getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
     }
   }
 
@@ -389,6 +391,7 @@ class YouTubeService {
               'maxResults': 5, // 각 채널에서 5개씩
               'order': 'date',
               'videoEmbeddable': 'true',
+              'q': '-shorts -short', // Shorts 키워드 제외
               'key': AppConfig.youtubeApiKey,
             },
           );
