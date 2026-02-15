@@ -355,7 +355,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             children: [
               Icon(
                 Icons.timer_outlined,
-                color: Theme.of(context).colorScheme.primary,
+                color: Colors.blue,
                 size: 20.sp,
               ),
               SizedBox(width: 8.w),
@@ -364,7 +364,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 style: TextStyle(
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.primary,
+                  color: Colors.blue,
                 ),
               ),
             ],
@@ -490,35 +490,41 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Widget _buildQuestionOverlay() {
+    final bool isFullscreen = _controller.value.isFullScreen;
+    final double scaleFactor = isFullscreen ? 0.7 : 1.0; // 전체화면에서 텍스트 크기 30% 감소
+
     return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.85),
-        child: SafeArea(
-          child: Center(
-            child: Container(
-              width: MediaQuery.of(context).size.width * 0.9,
-              constraints: BoxConstraints(
-                maxWidth: 600,
-                maxHeight: MediaQuery.of(context).size.height * 0.8,
-              ),
-              padding: EdgeInsets.all(24.w),
-              decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                borderRadius: BorderRadius.circular(16.r),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.5),
-                    blurRadius: 30,
-                    spreadRadius: 10,
-                  ),
-                ],
-              ),
-              child: SingleChildScrollView(
-                child: _isQuestionLoading
-                    ? _buildLoadingContent()
-                    : _currentQuestion != null
-                        ? _buildQuestionContent()
-                        : _buildErrorContent(),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Container(
+          color: Colors.black.withOpacity(0.85),
+          child: SafeArea(
+            child: Center(
+              child: Container(
+                width: MediaQuery.of(context).size.width * (isFullscreen ? 0.7 : 0.9),
+                constraints: BoxConstraints(
+                  maxWidth: isFullscreen ? 500 : 600,
+                  maxHeight: MediaQuery.of(context).size.height * (isFullscreen ? 0.7 : 0.8),
+                ),
+                padding: EdgeInsets.all(isFullscreen ? 16.w : 24.w),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16.r),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.5),
+                      blurRadius: 30,
+                      spreadRadius: 10,
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  child: _isQuestionLoading
+                      ? _buildLoadingContent(scaleFactor)
+                      : _currentQuestion != null
+                          ? _buildQuestionContent(scaleFactor)
+                          : _buildErrorContent(scaleFactor),
+                ),
               ),
             ),
           ),
@@ -527,7 +533,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     );
   }
 
-  Widget _buildLoadingContent() {
+  Widget _buildLoadingContent([double scaleFactor = 1.0]) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -535,13 +541,13 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         SizedBox(height: 16.h),
         Text(
           '문제를 생성하고 있습니다...',
-          style: TextStyle(fontSize: 16.sp),
+          style: TextStyle(fontSize: (16 * scaleFactor).sp),
         ),
       ],
     );
   }
 
-  Widget _buildQuestionContent() {
+  Widget _buildQuestionContent([double scaleFactor = 1.0]) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -553,9 +559,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             Text(
               '학습 문제 📚',
               style: TextStyle(
-                fontSize: 20.sp,
+                fontSize: (20 * scaleFactor).sp,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+                color: Colors.blue,
               ),
             ),
             IconButton(
@@ -573,7 +579,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         Text(
           _currentQuestion!.questionText,
           style: TextStyle(
-            fontSize: 18.sp,
+            fontSize: (18 * scaleFactor).sp,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -600,7 +606,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       : isWrong
                           ? Colors.red.withOpacity(0.1)
                           : isSelected
-                              ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                              ? Colors.blue.withOpacity(0.1)
                               : Colors.transparent,
                   border: Border.all(
                     color: isCorrect
@@ -608,7 +614,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                         : isWrong
                             ? Colors.red
                             : isSelected
-                                ? Theme.of(context).colorScheme.primary
+                                ? Colors.blue
                                 : Colors.grey.withOpacity(0.3),
                     width: isSelected || isCorrect || isWrong ? 2 : 1,
                   ),
@@ -626,7 +632,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             : isWrong
                                 ? Colors.red
                                 : isSelected
-                                    ? Theme.of(context).colorScheme.primary
+                                    ? Colors.blue
                                     : Colors.transparent,
                         border: Border.all(
                           color: isCorrect
@@ -634,7 +640,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               : isWrong
                                   ? Colors.red
                                   : isSelected
-                                      ? Theme.of(context).colorScheme.primary
+                                      ? Colors.blue
                                       : Colors.grey,
                           width: 2,
                         ),
@@ -652,7 +658,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                       child: Text(
                         option,
                         style: TextStyle(
-                          fontSize: 16.sp,
+                          fontSize: (16 * scaleFactor).sp,
                           fontWeight: isSelected || isCorrect || isWrong
                               ? FontWeight.w600
                               : FontWeight.normal,
@@ -661,7 +667,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                               : isWrong
                                   ? Colors.red
                                   : isSelected
-                                      ? Theme.of(context).colorScheme.primary
+                                      ? Colors.blue
                                       : null,
                         ),
                       ),
@@ -762,20 +768,20 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     );
   }
 
-  Widget _buildErrorContent() {
+  Widget _buildErrorContent([double scaleFactor = 1.0]) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           Icons.error_outline,
           color: Colors.red,
-          size: 48.sp,
+          size: (48 * scaleFactor).sp,
         ),
         SizedBox(height: 16.h),
         Text(
           '문제를 불러올 수 없습니다',
           style: TextStyle(
-            fontSize: 18.sp,
+            fontSize: (18 * scaleFactor).sp,
             fontWeight: FontWeight.w600,
           ),
         ),

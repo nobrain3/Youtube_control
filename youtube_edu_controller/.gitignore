@@ -39,6 +39,9 @@ build/
 **/build/
 /coverage/
 
+# Flutter DevTools
+devtools_options.yaml
+
 # Symbolication related
 app.*.symbols
 
