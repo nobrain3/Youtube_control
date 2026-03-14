@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import '../../services/timer/learning_timer_service.dart';
 
 class YouTubePlayerWidget extends ConsumerStatefulWidget {
@@ -30,6 +31,7 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
   late YoutubePlayerController _controller;
   bool _isPlayerReady = false;
   bool _wasPlayingBeforeBreak = false;
+  bool _hasPlaybackError = false;
 
   @override
   void initState() {
@@ -58,6 +60,13 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
     if (_controller.value.isReady && !_isPlayerReady) {
       setState(() {
         _isPlayerReady = true;
+      });
+    }
+
+    // 재생 에러 감지 (Error 150: 외부 앱 재생 차단)
+    if (_controller.value.hasError && !_hasPlaybackError) {
+      setState(() {
+        _hasPlaybackError = true;
       });
     }
 
@@ -139,33 +148,35 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
             color: Colors.black,
             borderRadius: BorderRadius.circular(12.r),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12.r),
-            child: YoutubePlayer(
-              controller: _controller,
-              showVideoProgressIndicator: true,
-              progressIndicatorColor: Theme.of(context).colorScheme.primary,
-              topActions: [
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.videoTitle,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
+          child: _hasPlaybackError
+              ? _buildErrorWidget()
+              : ClipRRect(
+                  borderRadius: BorderRadius.circular(12.r),
+                  child: YoutubePlayer(
+                    controller: _controller,
+                    showVideoProgressIndicator: true,
+                    progressIndicatorColor: Theme.of(context).colorScheme.primary,
+                    topActions: [
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          widget.videoTitle,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                    onReady: () {
+                      setState(() {
+                        _isPlayerReady = true;
+                      });
+                    },
                   ),
                 ),
-              ],
-              onReady: () {
-                setState(() {
-                  _isPlayerReady = true;
-                });
-              },
-            ),
-          ),
         ),
         if (_isPlayerReady) ...[
           Padding(
@@ -348,5 +359,71 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
     } else {
       return "$twoDigitMinutes:$twoDigitSeconds";
     }
+  }
+
+  Widget _buildErrorWidget() {
+    return Container(
+      width: double.infinity,
+      height: 200.h,
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Center(
+        child: Padding(
+          padding: EdgeInsets.all(24.w),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: Colors.white70,
+                size: 48.sp,
+              ),
+              SizedBox(height: 16.h),
+              Text(
+                '이 동영상은 외부 앱에서\n재생할 수 없습니다',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Text(
+                '동영상 소유자가 YouTube 앱에서만\n재생하도록 설정했습니다',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12.sp,
+                ),
+              ),
+              SizedBox(height: 16.h),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final url = 'https://www.youtube.com/watch?v=${widget.videoId}';
+                  try {
+                    final uri = Uri.parse(url);
+                    await url_launcher.launchUrl(
+                      uri,
+                      mode: url_launcher.LaunchMode.externalApplication,
+                    );
+                  } catch (e) {
+                    debugPrint('Failed to open YouTube: $e');
+                  }
+                },
+                icon: Icon(Icons.open_in_new, size: 18.sp),
+                label: const Text('YouTube에서 열기'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
