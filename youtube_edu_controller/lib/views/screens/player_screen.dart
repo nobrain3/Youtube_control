@@ -29,6 +29,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   // 좋아요/싫어요 상태
   String _userRating = 'none'; // 'like', 'dislike', 'none'
   bool _isRatingLoading = false;
+  int? _localLikeCount; // 로컬 좋아요 수 (사용자 액션 반영)
 
   @override
   void initState() {
@@ -97,18 +98,36 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     });
 
     try {
+      final previousRating = _userRating;
       final newRating = _userRating == 'like' ? 'none' : 'like';
       await YouTubeService().rateVideo(widget.videoId, newRating);
 
       setState(() {
         _userRating = newRating;
         _isRatingLoading = false;
+
+        // 로컬 좋아요 수 업데이트
+        if (_localLikeCount == null) {
+          _localLikeCount = _videoDetails?.likeCount ?? 0;
+        }
+
+        if (newRating == 'like') {
+          // 좋아요 누름
+          if (previousRating == 'dislike') {
+            _localLikeCount = _localLikeCount! + 1; // 싫어요 → 좋아요
+          } else {
+            _localLikeCount = _localLikeCount! + 1; // 미평가 → 좋아요
+          }
+        } else {
+          // 좋아요 취소
+          _localLikeCount = _localLikeCount! - 1;
+        }
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(newRating == 'like' ? '좋아요를 눌렀습니다!' : '좋아요를 취소했습니다'),
+            content: Text(newRating == 'like' ? '👍 좋아요!' : '좋아요 취소'),
             duration: const Duration(seconds: 1),
           ),
         );
@@ -137,18 +156,36 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     });
 
     try {
+      final previousRating = _userRating;
       final newRating = _userRating == 'dislike' ? 'none' : 'dislike';
       await YouTubeService().rateVideo(widget.videoId, newRating);
 
       setState(() {
         _userRating = newRating;
         _isRatingLoading = false;
+
+        // 로컬 좋아요 수 업데이트 (싫어요를 누르면 좋아요가 취소될 수 있음)
+        if (_localLikeCount == null) {
+          _localLikeCount = _videoDetails?.likeCount ?? 0;
+        }
+
+        if (newRating == 'dislike') {
+          // 싫어요 누름
+          if (previousRating == 'like') {
+            _localLikeCount = _localLikeCount! - 1; // 좋아요 → 싫어요
+          }
+        } else {
+          // 싫어요 취소
+          if (previousRating == 'dislike') {
+            // 싫어요만 취소 (좋아요 수 변화 없음)
+          }
+        }
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(newRating == 'dislike' ? '싫어요를 눌렀습니다!' : '싫어요를 취소했습니다'),
+            content: Text(newRating == 'dislike' ? '👎 싫어요' : '싫어요 취소'),
             duration: const Duration(seconds: 1),
           ),
         );
@@ -391,10 +428,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
             ),
-            SizedBox(width: 16.w),
-            _buildLikeDislikeButtons(),
           ],
         ),
+        SizedBox(height: 12.h),
+        _buildLikeDislikeButtons(),
         SizedBox(height: 16.h),
         Text(
           '설명',
@@ -446,7 +483,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 ),
                 SizedBox(width: 4.w),
                 Text(
-                  '${_videoDetails!.likeCount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                  '${(_localLikeCount ?? _videoDetails!.likeCount).toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
                   style: TextStyle(
                     fontSize: 12.sp,
                     fontWeight: _userRating == 'like' ? FontWeight.w600 : FontWeight.normal,
