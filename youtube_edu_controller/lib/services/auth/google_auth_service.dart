@@ -10,6 +10,7 @@ class GoogleAuthService {
       'email',
       'profile',
       'https://www.googleapis.com/auth/youtube.readonly',
+      'https://www.googleapis.com/auth/youtube.force-ssl', // 좋아요/싫어요 등록을 위한 쓰기 권한
     ],
   );
 
