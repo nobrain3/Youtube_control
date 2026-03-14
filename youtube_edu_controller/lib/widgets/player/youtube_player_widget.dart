@@ -3,6 +3,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
+import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:chewie/chewie.dart';
+import 'package:video_player/video_player.dart';
 import '../../services/timer/learning_timer_service.dart';
 
 class YouTubePlayerWidget extends ConsumerStatefulWidget {
@@ -33,6 +36,12 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
   bool _wasPlayingBeforeBreak = false;
   bool _hasPlaybackError = false;
 
+  // Fallback player for Error 150
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
+  bool _useFallbackPlayer = false;
+  bool _isLoadingFallback = false;
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +65,92 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
     _controller.addListener(_onPlayerStateChange);
   }
 
+  Future<void> _switchToFallbackPlayer() async {
+    if (_useFallbackPlayer || _isLoadingFallback) return;
+
+    setState(() {
+      _isLoadingFallback = true;
+    });
+
+    try {
+      debugPrint('Switching to fallback player for video: ${widget.videoId}');
+      var yt = YoutubeExplode();
+
+      // Get video stream manifest
+      var manifest = await yt.videos.streamsClient.getManifest(widget.videoId);
+
+      // Get muxed stream (contains both video and audio)
+      // Note: Muxed streams are limited to 360p
+      if (manifest.muxed.isEmpty) {
+        throw Exception('No muxed streams available');
+      }
+      var streamInfo = manifest.muxed.last; // Get highest quality muxed stream
+
+      // Initialize video player with direct stream URL
+      _videoController = VideoPlayerController.networkUrl(streamInfo.url);
+      await _videoController!.initialize();
+
+      debugPrint('Fallback player initialized: ${streamInfo.qualityLabel}');
+
+      // Initialize Chewie controller for better UI
+      _chewieController = ChewieController(
+        videoPlayerController: _videoController!,
+        autoPlay: false,
+        looping: false,
+        allowFullScreen: true,
+        allowMuting: true,
+        showControls: true,
+        errorBuilder: (context, errorMessage) {
+          return Center(
+            child: Text(
+              'Error: $errorMessage',
+              style: const TextStyle(color: Colors.white),
+            ),
+          );
+        },
+      );
+
+      // Add listener for state changes
+      _videoController!.addListener(_onVideoPlayerStateChange);
+
+      setState(() {
+        _useFallbackPlayer = true;
+        _isPlayerReady = true;
+        _hasPlaybackError = false;
+        _isLoadingFallback = false;
+      });
+
+      yt.close();
+    } catch (e) {
+      debugPrint('Failed to load fallback player: $e');
+      setState(() {
+        _isLoadingFallback = false;
+        _hasPlaybackError = true;
+      });
+    }
+  }
+
+  void _onVideoPlayerStateChange() {
+    if (_videoController == null) return;
+
+    final isPlaying = _videoController!.value.isPlaying;
+    final timerState = ref.read(learningTimerProvider);
+
+    if (isPlaying && !timerState.isActive) {
+      ref.read(learningTimerProvider.notifier).startSession();
+    } else if (!isPlaying && timerState.isActive) {
+      ref.read(learningTimerProvider.notifier).pauseSession();
+    }
+
+    if (_videoController!.value.position >= _videoController!.value.duration) {
+      ref.read(learningTimerProvider.notifier).stopSession();
+      widget.onVideoEnd?.call();
+    }
+
+    widget.onPositionChanged?.call(_videoController!.value.position);
+    widget.onTimeUpdate?.call();
+  }
+
   void _onPlayerStateChange() {
     if (_controller.value.isReady && !_isPlayerReady) {
       setState(() {
@@ -68,6 +163,8 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
       setState(() {
         _hasPlaybackError = true;
       });
+      // Error 150 감지 시 자동으로 대체 플레이어로 전환
+      _switchToFallbackPlayer();
     }
 
     if (_controller.value.playerState == PlayerState.ended) {
@@ -99,31 +196,66 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
   void dispose() {
     _controller.removeListener(_onPlayerStateChange);
     _controller.dispose();
+    _videoController?.removeListener(_onVideoPlayerStateChange);
+    _chewieController?.dispose();
+    _videoController?.dispose();
     super.dispose();
   }
 
   void play() {
-    if (_isPlayerReady) {
+    if (!_isPlayerReady) return;
+    if (_useFallbackPlayer) {
+      _videoController?.play();
+    } else {
       _controller.play();
     }
   }
 
   void pause() {
-    if (_isPlayerReady) {
+    if (!_isPlayerReady) return;
+    if (_useFallbackPlayer) {
+      _videoController?.pause();
+    } else {
       _controller.pause();
     }
   }
 
   void seekTo(Duration position) {
-    if (_isPlayerReady) {
+    if (!_isPlayerReady) return;
+    if (_useFallbackPlayer) {
+      _videoController?.seekTo(position);
+    } else {
       _controller.seekTo(position);
     }
   }
 
-  Duration get currentPosition => _controller.value.position;
-  Duration get totalDuration => _controller.metadata.duration;
-  bool get isPlaying => _controller.value.playerState == PlayerState.playing;
-  bool get isPaused => _controller.value.playerState == PlayerState.paused;
+  Duration get currentPosition {
+    if (_useFallbackPlayer) {
+      return _videoController?.value.position ?? Duration.zero;
+    }
+    return _controller.value.position;
+  }
+
+  Duration get totalDuration {
+    if (_useFallbackPlayer) {
+      return _videoController?.value.duration ?? Duration.zero;
+    }
+    return _controller.metadata.duration;
+  }
+
+  bool get isPlaying {
+    if (_useFallbackPlayer) {
+      return _videoController?.value.isPlaying ?? false;
+    }
+    return _controller.value.playerState == PlayerState.playing;
+  }
+
+  bool get isPaused {
+    if (_useFallbackPlayer) {
+      return !(_videoController?.value.isPlaying ?? false);
+    }
+    return _controller.value.playerState == PlayerState.paused;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,47 +280,87 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
             color: Colors.black,
             borderRadius: BorderRadius.circular(12.r),
           ),
-          child: _hasPlaybackError
-              ? _buildErrorWidget()
-              : ClipRRect(
-                  borderRadius: BorderRadius.circular(12.r),
-                  child: YoutubePlayer(
-                    controller: _controller,
-                    showVideoProgressIndicator: true,
-                    progressIndicatorColor: Theme.of(context).colorScheme.primary,
-                    topActions: [
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.videoTitle,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ],
-                    onReady: () {
-                      setState(() {
-                        _isPlayerReady = true;
-                      });
-                    },
-                  ),
-                ),
+          child: _buildPlayerWidget(context),
         ),
         if (_isPlayerReady) ...[
           Padding(
             padding: EdgeInsets.symmetric(vertical: 8.h),
             child: _buildTimerDisplay(timerState),
           ),
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 8.h),
-            child: _buildCustomControls(),
-          ),
+          // Show custom controls only for IFrame player, not for fallback
+          if (!_useFallbackPlayer)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.h),
+              child: _buildCustomControls(),
+            ),
         ],
       ],
+    );
+  }
+
+  Widget _buildPlayerWidget(BuildContext context) {
+    // Show loading indicator while switching to fallback
+    if (_isLoadingFallback) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            SizedBox(height: 16.h),
+            Text(
+              '대체 플레이어 로딩 중...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14.sp,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show fallback player (Chewie)
+    if (_useFallbackPlayer && _chewieController != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12.r),
+        child: Chewie(controller: _chewieController!),
+      );
+    }
+
+    // Show error widget if playback failed completely
+    if (_hasPlaybackError && !_useFallbackPlayer && !_isLoadingFallback) {
+      return _buildErrorWidget();
+    }
+
+    // Show default IFrame player
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12.r),
+      child: YoutubePlayer(
+        controller: _controller,
+        showVideoProgressIndicator: true,
+        progressIndicatorColor: Theme.of(context).colorScheme.primary,
+        topActions: [
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              widget.videoTitle,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
+        onReady: () {
+          setState(() {
+            _isPlayerReady = true;
+          });
+        },
+      ),
     );
   }
 
@@ -382,7 +554,7 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
               ),
               SizedBox(height: 16.h),
               Text(
-                '이 동영상은 외부 앱에서\n재생할 수 없습니다',
+                '동영상 재생 실패',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
@@ -392,7 +564,7 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
               ),
               SizedBox(height: 8.h),
               Text(
-                '동영상 소유자가 YouTube 앱에서만\n재생하도록 설정했습니다',
+                '대체 플레이어로도\n재생할 수 없습니다',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white70,
@@ -400,25 +572,46 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
                 ),
               ),
               SizedBox(height: 16.h),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final url = 'https://www.youtube.com/watch?v=${widget.videoId}';
-                  try {
-                    final uri = Uri.parse(url);
-                    await url_launcher.launchUrl(
-                      uri,
-                      mode: url_launcher.LaunchMode.externalApplication,
-                    );
-                  } catch (e) {
-                    debugPrint('Failed to open YouTube: $e');
-                  }
-                },
-                icon: Icon(Icons.open_in_new, size: 18.sp),
-                label: const Text('YouTube에서 열기'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _hasPlaybackError = false;
+                        _useFallbackPlayer = false;
+                      });
+                      _initializePlayer();
+                    },
+                    icon: Icon(Icons.refresh, size: 18.sp),
+                    label: const Text('다시 시도'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  SizedBox(width: 8.w),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final url = 'https://www.youtube.com/watch?v=${widget.videoId}';
+                      try {
+                        final uri = Uri.parse(url);
+                        await url_launcher.launchUrl(
+                          uri,
+                          mode: url_launcher.LaunchMode.externalApplication,
+                        );
+                      } catch (e) {
+                        debugPrint('Failed to open YouTube: $e');
+                      }
+                    },
+                    icon: Icon(Icons.open_in_new, size: 18.sp),
+                    label: const Text('YouTube 열기'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

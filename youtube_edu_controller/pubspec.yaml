@@ -46,7 +46,7 @@ dependencies:
 
   # YouTube Player
   youtube_player_flutter: ^9.0.1
-  pod_player: ^0.2.2
+  youtube_explode_dart: ^2.5.2
 
   # Video Player (alternative)
   video_player: ^2.8.1

@@ -169,14 +169,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
-  charcode:
-    dependency: transitive
-    description:
-      name: charcode
-      sha256: fb0f1107cac15a5ea6ef0a6ef71a807b9e4267c713bb93e00e92d737cc8dbd8a
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.4.0"
   checked_yaml:
     dependency: transitive
     description:
@@ -488,14 +480,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.0"
-  get:
-    dependency: transitive
-    description:
-      name: get
-      sha256: c79eeb4339f1f3deffd9ec912f8a923834bec55f7b49c9e882b8fef2c139d425
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.7.2"
   glob:
     dependency: transitive
     description:
@@ -952,14 +936,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
-  pod_player:
-    dependency: "direct main"
-    description:
-      name: pod_player
-      sha256: "38564f2e0d9b06fa9e4ad5023be2f6fa4cd9f95f70ace2f517a6d899b166a502"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.2"
   pool:
     dependency: transitive
     description:
@@ -1309,22 +1285,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.7"
-  universal_html:
-    dependency: transitive
-    description:
-      name: universal_html
-      sha256: "56536254004e24d9d8cfdb7dbbf09b74cf8df96729f38a2f5c238163e3d58971"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.2.4"
-  universal_io:
-    dependency: transitive
-    description:
-      name: universal_io
-      sha256: "1722b2dcc462b4b2f3ee7d188dad008b6eb4c40bbd03a3de451d82c78bba9aad"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.2.2"
   url_launcher:
     dependency: "direct main"
     description:
@@ -1542,7 +1502,7 @@ packages:
     source: hosted
     version: "3.1.3"
   youtube_explode_dart:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: youtube_explode_dart
       sha256: "9ff345caf8351c59eb1b7560837f761e08d2beaea3b4187637942715a31a6f58"
