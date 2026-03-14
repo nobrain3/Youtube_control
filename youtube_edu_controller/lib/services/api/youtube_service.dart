@@ -218,6 +218,66 @@ class YouTubeService {
     return match?.group(1) ?? '';
   }
 
+  /// 동영상 좋아요/싫어요 등록
+  /// [rating]: 'like', 'dislike', 'none' (평가 취소)
+  Future<void> rateVideo(String videoId, String rating) async {
+    try {
+      final accessToken = await GoogleAuthService().getAccessToken();
+
+      if (accessToken == null) {
+        throw Exception('로그인이 필요합니다');
+      }
+
+      await _dio.post(
+        'https://www.googleapis.com/youtube/v3/videos/rate',
+        queryParameters: {
+          'id': videoId,
+          'rating': rating,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+          },
+        ),
+      );
+    } catch (e) {
+      throw Exception('Failed to rate video: $e');
+    }
+  }
+
+  /// 현재 사용자의 동영상 평가 상태 조회
+  /// 반환값: 'like', 'dislike', 'none'
+  Future<String> getVideoRating(String videoId) async {
+    try {
+      final accessToken = await GoogleAuthService().getAccessToken();
+
+      if (accessToken == null) {
+        return 'none';
+      }
+
+      final response = await _dio.get(
+        'https://www.googleapis.com/youtube/v3/videos/getRating',
+        queryParameters: {
+          'id': videoId,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+          },
+        ),
+      );
+
+      final List<dynamic> items = response.data['items'] ?? [];
+      if (items.isEmpty) {
+        return 'none';
+      }
+
+      return items.first['rating'] ?? 'none';
+    } catch (e) {
+      return 'none';
+    }
+  }
+
   // 개인화된 추천 영상 가져오기
   Future<YouTubeSearchResult> getPersonalizedRecommendations({
     int maxResults = 20,
