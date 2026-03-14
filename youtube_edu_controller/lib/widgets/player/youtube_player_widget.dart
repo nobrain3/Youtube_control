@@ -441,72 +441,29 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
   }
 
   Widget _buildCustomControls() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              onPressed: () {
-                final currentPos = _controller.value.position;
-                final newPos = currentPos - const Duration(seconds: 10);
-                _controller.seekTo(newPos);
-              },
-              icon: const Icon(Icons.replay_10),
-              iconSize: 32.sp,
-            ),
-            SizedBox(width: 16.w),
-            IconButton(
-              onPressed: () {
-                if (isPlaying) {
-                  pause();
-                } else {
-                  play();
-                }
-              },
-              icon: Icon(
-                isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                size: 48.sp,
-              ),
-            ),
-            SizedBox(width: 16.w),
-            IconButton(
-              onPressed: () {
-                final currentPos = _controller.value.position;
-                final newPos = currentPos + const Duration(seconds: 10);
-                _controller.seekTo(newPos);
-              },
-              icon: const Icon(Icons.forward_10),
-              iconSize: 32.sp,
-            ),
-          ],
-        ),
-        SizedBox(height: 8.h),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
-          child: Row(
-            children: [
-              Text(
-                _formatDuration(currentPosition),
-                style: TextStyle(fontSize: 12.sp),
-              ),
-              Expanded(
-                child: Slider(
-                  value: currentPosition.inSeconds.toDouble(),
-                  max: totalDuration.inSeconds.toDouble(),
-                  onChanged: (value) {
-                    _controller.seekTo(Duration(seconds: value.toInt()));
-                  },
-                ),
-              ),
-              Text(
-                _formatDuration(totalDuration),
-                style: TextStyle(fontSize: 12.sp),
-              ),
-            ],
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16.w),
+      child: Row(
+        children: [
+          Text(
+            _formatDuration(currentPosition),
+            style: TextStyle(fontSize: 12.sp),
           ),
-        ),
-      ],
+          Expanded(
+            child: Slider(
+              value: currentPosition.inSeconds.toDouble(),
+              max: totalDuration.inSeconds.toDouble(),
+              onChanged: (value) {
+                _controller.seekTo(Duration(seconds: value.toInt()));
+              },
+            ),
+          ),
+          Text(
+            _formatDuration(totalDuration),
+            style: TextStyle(fontSize: 12.sp),
+          ),
+        ],
+      ),
     );
   }
 
