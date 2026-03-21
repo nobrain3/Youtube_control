@@ -267,8 +267,6 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final timerState = ref.watch(learningTimerProvider);
-
     ref.listen<LearningTimerState>(learningTimerProvider, (previous, next) {
       if (next.isBreakTime && !previous!.isBreakTime) {
         _wasPlayingBeforeBreak = isPlaying;
@@ -292,10 +290,10 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
             ),
             child: _buildPlayerWidget(context),
           ),
-          if (_isPlayerReady) ...[
+          if (_isPlayerReady && !_useFallbackPlayer) ...[
             Padding(
               padding: EdgeInsets.symmetric(vertical: 8.h),
-              child: _buildTimerDisplay(timerState),
+              child: _buildCustomControls(),
             ),
           ],
         ],
@@ -359,10 +357,6 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
               ),
             ),
             if (_isPlayerReady) ...[
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 8.h),
-                child: _buildTimerDisplay(timerState),
-              ),
               Padding(
                 padding: EdgeInsets.symmetric(vertical: 8.h),
                 child: _buildCustomControls(),
@@ -461,86 +455,6 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
           Text(
             _formatDuration(totalDuration),
             style: TextStyle(fontSize: 12.sp),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimerDisplay(LearningTimerState timerState) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: timerState.isBreakTime
-            ? Colors.orange.withOpacity(0.1)
-            : Theme.of(context).colorScheme.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8.r),
-        border: Border.all(
-          color: timerState.isBreakTime
-              ? Colors.orange
-              : Theme.of(context).colorScheme.primary,
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '학습 시간',
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: Theme.of(context).textTheme.bodyMedium?.color,
-                ),
-              ),
-              Text(
-                _formatDuration(timerState.currentSession),
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                timerState.isBreakTime ? '휴식 시간!' : '다음 문제까지',
-                style: TextStyle(
-                  fontSize: 12.sp,
-                  color: timerState.isBreakTime
-                      ? Colors.orange
-                      : Theme.of(context).textTheme.bodyMedium?.color,
-                ),
-              ),
-              Text(
-                timerState.isBreakTime
-                    ? '문제 풀이 중'
-                    : _formatDuration(timerState.timeUntilBreak),
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.bold,
-                  color: timerState.isBreakTime
-                      ? Colors.orange
-                      : Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ],
-          ),
-          Icon(
-            timerState.isBreakTime
-                ? Icons.quiz
-                : (timerState.isActive ? Icons.timer : Icons.timer_off),
-            color: timerState.isBreakTime
-                ? Colors.orange
-                : Theme.of(context).colorScheme.primary,
-            size: 24.sp,
           ),
         ],
       ),

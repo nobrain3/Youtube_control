@@ -52,12 +52,15 @@ class _HomeScreenState extends State<HomeScreen> {
         _nextPageToken = result.nextPageToken;
         _isLoadingRecommended = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('=== 추천 영상 로딩 오류 ===');
+      debugPrint('Error: $e');
+      debugPrint('StackTrace: $stackTrace');
       setState(() {
         _isLoadingRecommended = false;
       });
       if (mounted) {
-        String errorMessage = '영상 로딩 중 오류가 발생했습니다';
+        String errorMessage = '영상 로딩 중 오류가 발생했습니다: ${e.toString()}';
         bool showSettingsButton = false;
 
         if (e.toString().contains('YouTube API 키가 설정되지 않았습니다')) {
@@ -69,8 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
         } else if (e.toString().contains('YouTube API 키가 유효하지 않습니다')) {
           errorMessage = 'YouTube API 키가 유효하지 않습니다. 올바른 키를 입력해주세요.';
           showSettingsButton = true;
-        } else if (e.toString().contains('할당량이 초과되었습니다')) {
-          errorMessage = 'YouTube API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.';
+        } else if (e.toString().contains('할당량이 초과')) {
+          errorMessage = 'YouTube API 일일 할당량이 소진되었습니다. 내일 자정(태평양 시간) 이후 초기화됩니다.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -104,12 +107,15 @@ class _HomeScreenState extends State<HomeScreen> {
         _nextPageToken = result.nextPageToken;
         _isLoadingMoreRecommended = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('=== 추가 영상 로딩 오류 ===');
+      debugPrint('Error: $e');
+      debugPrint('StackTrace: $stackTrace');
       setState(() {
         _isLoadingMoreRecommended = false;
       });
       if (mounted) {
-        String errorMessage = '영상 로딩 중 오류가 발생했습니다';
+        String errorMessage = '영상 로딩 중 오류가 발생했습니다: ${e.toString()}';
         bool showSettingsButton = false;
 
         if (e.toString().contains('YouTube API 키가 설정되지 않았습니다')) {
@@ -121,8 +127,8 @@ class _HomeScreenState extends State<HomeScreen> {
         } else if (e.toString().contains('YouTube API 키가 유효하지 않습니다')) {
           errorMessage = 'YouTube API 키가 유효하지 않습니다. 올바른 키를 입력해주세요.';
           showSettingsButton = true;
-        } else if (e.toString().contains('할당량이 초과되었습니다')) {
-          errorMessage = 'YouTube API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.';
+        } else if (e.toString().contains('할당량이 초과')) {
+          errorMessage = 'YouTube API 일일 할당량이 소진되었습니다. 내일 자정(태평양 시간) 이후 초기화됩니다.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(

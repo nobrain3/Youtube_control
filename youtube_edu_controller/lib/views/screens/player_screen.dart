@@ -71,6 +71,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       });
     }
 
+    // 재생/일시정지 상태 변경 시 UI 갱신 (커스텀 컨트롤 버튼 토글)
+    if (mounted) {
+      setState(() {});
+    }
+
     if (_controller.value.playerState == PlayerState.ended) {
       ref.read(learningTimerProvider.notifier).stopSession();
     }
@@ -444,10 +449,9 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             ),
                           ),
 
-                          SizedBox(height: 24.h),
-
-                          // Study Timer Info
-                          _buildStudyTimerInfo(),
+                          // Custom Controls
+                          if (_isPlayerReady)
+                            _buildCustomControls(),
 
                           SizedBox(height: 24.h),
 
@@ -472,48 +476,75 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     );
   }
 
-  Widget _buildStudyTimerInfo() {
-    final timerState = ref.watch(learningTimerProvider);
+  Widget _buildCustomControls() {
+    final isPlaying = _controller.value.playerState == PlayerState.playing;
+    final currentPosition = _controller.value.position;
+    final totalDuration = _controller.metadata.duration;
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.timer_outlined,
-                color: Colors.blue,
-                size: 20.sp,
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              onPressed: () {
+                final newPos = currentPosition - const Duration(seconds: 10);
+                _controller.seekTo(newPos);
+              },
+              icon: const Icon(Icons.replay_10),
+              iconSize: 32.sp,
+            ),
+            SizedBox(width: 16.w),
+            IconButton(
+              onPressed: () {
+                if (isPlaying) {
+                  _controller.pause();
+                } else {
+                  _controller.play();
+                }
+              },
+              icon: Icon(
+                isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                size: 48.sp,
               ),
-              SizedBox(width: 8.w),
+            ),
+            SizedBox(width: 16.w),
+            IconButton(
+              onPressed: () {
+                final newPos = currentPosition + const Duration(seconds: 10);
+                _controller.seekTo(newPos);
+              },
+              icon: const Icon(Icons.forward_10),
+              iconSize: 32.sp,
+            ),
+          ],
+        ),
+        SizedBox(height: 8.h),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          child: Row(
+            children: [
               Text(
-                '학습 타이머',
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue,
+                _formatDuration(currentPosition),
+                style: TextStyle(fontSize: 12.sp),
+              ),
+              Expanded(
+                child: Slider(
+                  value: currentPosition.inSeconds.toDouble().clamp(0, totalDuration.inSeconds.toDouble()),
+                  max: totalDuration.inSeconds > 0 ? totalDuration.inSeconds.toDouble() : 1,
+                  onChanged: (value) {
+                    _controller.seekTo(Duration(seconds: value.toInt()));
+                  },
                 ),
+              ),
+              Text(
+                _formatDuration(totalDuration),
+                style: TextStyle(fontSize: 12.sp),
               ),
             ],
           ),
-          SizedBox(height: 8.h),
-          Text(
-            '현재 세션: ${_formatDuration(timerState.currentSession)}',
-            style: TextStyle(fontSize: 14.sp),
-          ),
-          Text(
-            '다음 문제까지: ${_formatDuration(timerState.timeUntilBreak)}',
-            style: TextStyle(fontSize: 14.sp),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
