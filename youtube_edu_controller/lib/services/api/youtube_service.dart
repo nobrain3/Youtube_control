@@ -98,17 +98,21 @@ class YouTubeService {
         print('  - data: ${e.response?.data}');
         print('  - requestOptions: ${e.requestOptions.uri}');
 
-        // API 키 관련 오류 처리
-        if (e.response?.statusCode == 400) {
-          final errorData = e.response?.data;
-          if (errorData != null && errorData['error'] != null) {
-            final errorMessage = errorData['error']['message'] ?? '';
+        // API 오류 처리
+        final statusCode = e.response?.statusCode;
+        final errorData = e.response?.data;
+        if (errorData != null && errorData['error'] != null) {
+          final errorMessage = errorData['error']['message'] ?? '';
+          final errors = errorData['error']['errors'] as List? ?? [];
+          final reason = errors.isNotEmpty ? (errors[0]['reason'] ?? '') : '';
+
+          if (reason == 'quotaExceeded' || errorMessage.contains('quota')) {
+            throw Exception('할당량이 초과되었습니다. YouTube API 일일 할당량이 소진되어 내일 자정(태평양 시간) 이후 초기화됩니다.');
+          } else if (statusCode == 400) {
             if (errorMessage.contains('API key expired')) {
               throw Exception('YouTube API 키가 만료되었습니다. Google Cloud Console에서 새로운 키를 생성해주세요.');
             } else if (errorMessage.contains('API key not valid')) {
               throw Exception('YouTube API 키가 유효하지 않습니다. API 키를 다시 확인해주세요.');
-            } else if (errorMessage.contains('quotaExceeded')) {
-              throw Exception('YouTube API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.');
             }
           }
         }

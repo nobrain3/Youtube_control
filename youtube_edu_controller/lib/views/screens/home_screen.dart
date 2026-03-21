@@ -72,8 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
         } else if (e.toString().contains('YouTube API 키가 유효하지 않습니다')) {
           errorMessage = 'YouTube API 키가 유효하지 않습니다. 올바른 키를 입력해주세요.';
           showSettingsButton = true;
-        } else if (e.toString().contains('할당량이 초과되었습니다')) {
-          errorMessage = 'YouTube API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.';
+        } else if (e.toString().contains('할당량이 초과')) {
+          errorMessage = 'YouTube API 일일 할당량이 소진되었습니다. 내일 자정(태평양 시간) 이후 초기화됩니다.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -127,8 +127,8 @@ class _HomeScreenState extends State<HomeScreen> {
         } else if (e.toString().contains('YouTube API 키가 유효하지 않습니다')) {
           errorMessage = 'YouTube API 키가 유효하지 않습니다. 올바른 키를 입력해주세요.';
           showSettingsButton = true;
-        } else if (e.toString().contains('할당량이 초과되었습니다')) {
-          errorMessage = 'YouTube API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.';
+        } else if (e.toString().contains('할당량이 초과')) {
+          errorMessage = 'YouTube API 일일 할당량이 소진되었습니다. 내일 자정(태평양 시간) 이후 초기화됩니다.';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
