@@ -71,6 +71,11 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       });
     }
 
+    // 재생/일시정지 상태 변경 시 UI 갱신 (커스텀 컨트롤 버튼 토글)
+    if (mounted) {
+      setState(() {});
+    }
+
     if (_controller.value.playerState == PlayerState.ended) {
       ref.read(learningTimerProvider.notifier).stopSession();
     }
