@@ -35,6 +35,7 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
   bool _isPlayerReady = false;
   bool _wasPlayingBeforeBreak = false;
   bool _hasPlaybackError = false;
+  bool _isFullScreen = false;
 
   // Fallback player for Error 150
   VideoPlayerController? _videoController;
@@ -167,6 +168,13 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
       _switchToFallbackPlayer();
     }
 
+    // 전체화면 상태 변경 감지
+    if (_controller.value.isFullScreen != _isFullScreen) {
+      setState(() {
+        _isFullScreen = _controller.value.isFullScreen;
+      });
+    }
+
     if (_controller.value.playerState == PlayerState.ended) {
       ref.read(learningTimerProvider.notifier).stopSession();
       widget.onVideoEnd?.call();
@@ -271,30 +279,98 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
       }
     });
 
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          height: 200.h,
-          decoration: BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.circular(12.r),
+    // Fallback 플레이어 사용 시 YoutubePlayerBuilder 없이 직접 렌더링
+    if (_useFallbackPlayer || _isLoadingFallback || (_hasPlaybackError && !_useFallbackPlayer && !_isLoadingFallback)) {
+      return Column(
+        children: [
+          Container(
+            width: double.infinity,
+            height: 200.h,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            child: _buildPlayerWidget(context),
           ),
-          child: _buildPlayerWidget(context),
-        ),
-        if (_isPlayerReady) ...[
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 8.h),
-            child: _buildTimerDisplay(timerState),
-          ),
-          // Show custom controls only for IFrame player, not for fallback
-          if (!_useFallbackPlayer)
+          if (_isPlayerReady) ...[
             Padding(
               padding: EdgeInsets.symmetric(vertical: 8.h),
-              child: _buildCustomControls(),
+              child: _buildTimerDisplay(timerState),
             ),
+          ],
         ],
-      ],
+      );
+    }
+
+    // 기본 IFrame 플레이어: YoutubePlayerBuilder로 전체화면 지원
+    return YoutubePlayerBuilder(
+      onEnterFullScreen: () {
+        setState(() {
+          _isFullScreen = true;
+        });
+      },
+      onExitFullScreen: () {
+        setState(() {
+          _isFullScreen = false;
+        });
+      },
+      player: YoutubePlayer(
+        controller: _controller,
+        showVideoProgressIndicator: true,
+        progressIndicatorColor: Theme.of(context).colorScheme.primary,
+        topActions: [
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              widget.videoTitle,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
+        onReady: () {
+          setState(() {
+            _isPlayerReady = true;
+          });
+        },
+      ),
+      builder: (context, player) {
+        // 전체화면일 때는 player만 반환
+        if (_isFullScreen) {
+          return player;
+        }
+
+        return Column(
+          children: [
+            Container(
+              width: double.infinity,
+              height: 200.h,
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12.r),
+                child: player,
+              ),
+            ),
+            if (_isPlayerReady) ...[
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.h),
+                child: _buildTimerDisplay(timerState),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 8.h),
+                child: _buildCustomControls(),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 

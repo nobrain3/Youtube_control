@@ -57,8 +57,31 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoadingRecommended = false;
       });
       if (mounted) {
+        String errorMessage = '영상 로딩 중 오류가 발생했습니다';
+        bool showSettingsButton = false;
+
+        if (e.toString().contains('YouTube API 키가 설정되지 않았습니다')) {
+          errorMessage = 'YouTube API 키를 설정해주세요. 설정 > API 키 설정에서 확인하세요.';
+          showSettingsButton = true;
+        } else if (e.toString().contains('YouTube API 키가 만료되었습니다')) {
+          errorMessage = 'YouTube API 키가 만료되었습니다. 새로운 API 키가 필요합니다.';
+          showSettingsButton = true;
+        } else if (e.toString().contains('YouTube API 키가 유효하지 않습니다')) {
+          errorMessage = 'YouTube API 키가 유효하지 않습니다. 올바른 키를 입력해주세요.';
+          showSettingsButton = true;
+        } else if (e.toString().contains('할당량이 초과되었습니다')) {
+          errorMessage = 'YouTube API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('영상 로딩 중 오류가 발생했습니다: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            duration: const Duration(seconds: 5),
+            action: showSettingsButton ? SnackBarAction(
+              label: '설정',
+              onPressed: () => context.push('/home/settings'),
+            ) : null,
+          ),
         );
       }
     }
@@ -86,8 +109,31 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoadingMoreRecommended = false;
       });
       if (mounted) {
+        String errorMessage = '영상 로딩 중 오류가 발생했습니다';
+        bool showSettingsButton = false;
+
+        if (e.toString().contains('YouTube API 키가 설정되지 않았습니다')) {
+          errorMessage = 'YouTube API 키를 설정해주세요. 설정 > API 키 설정에서 확인하세요.';
+          showSettingsButton = true;
+        } else if (e.toString().contains('YouTube API 키가 만료되었습니다')) {
+          errorMessage = 'YouTube API 키가 만료되었습니다. 새로운 API 키가 필요합니다.';
+          showSettingsButton = true;
+        } else if (e.toString().contains('YouTube API 키가 유효하지 않습니다')) {
+          errorMessage = 'YouTube API 키가 유효하지 않습니다. 올바른 키를 입력해주세요.';
+          showSettingsButton = true;
+        } else if (e.toString().contains('할당량이 초과되었습니다')) {
+          errorMessage = 'YouTube API 할당량이 초과되었습니다. 잠시 후 다시 시도해주세요.';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('영상 로딩 중 오류가 발생했습니다: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            duration: const Duration(seconds: 5),
+            action: showSettingsButton ? SnackBarAction(
+              label: '설정',
+              onPressed: () => context.push('/home/settings'),
+            ) : null,
+          ),
         );
       }
     }
@@ -116,8 +162,19 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoadingShorts = false;
       });
       if (mounted) {
+        String errorMessage = 'Shorts 로딩 중 오류가 발생했습니다';
+        if (e.toString().contains('YouTube API 키가 설정되지 않았습니다')) {
+          errorMessage = 'YouTube API 키를 설정해주세요. 설정 > API 키 설정에서 확인하세요.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Shorts 로딩 중 오류가 발생했습니다: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: '설정',
+              onPressed: () => context.push('/home/settings'),
+            ),
+          ),
         );
       }
     }
@@ -153,8 +210,19 @@ class _HomeScreenState extends State<HomeScreen> {
         _isSearching = false;
       });
       if (mounted) {
+        String errorMessage = '검색 중 오류가 발생했습니다';
+        if (e.toString().contains('YouTube API 키가 설정되지 않았습니다')) {
+          errorMessage = 'YouTube API 키를 설정해주세요. 설정 > API 키 설정에서 확인하세요.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('검색 중 오류가 발생했습니다: $e')),
+          SnackBar(
+            content: Text(errorMessage),
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: '설정',
+              onPressed: () => context.push('/home/settings'),
+            ),
+          ),
         );
       }
     }

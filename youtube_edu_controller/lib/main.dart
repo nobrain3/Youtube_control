@@ -6,6 +6,7 @@ import 'config/app_theme.dart';
 import 'config/app_routes.dart';
 import 'config/app_config.dart';
 import 'services/storage/local_storage_service.dart';
+import 'services/auth/google_auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +16,9 @@ void main() async {
 
   // 로컬 스토리지 초기화
   await LocalStorageService().init();
+
+  // Google 인증 서비스 초기화
+  await GoogleAuthService().initialize();
 
   runApp(
     ProviderScope(
