@@ -33,11 +33,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isAnswered = false;
   bool _isQuestionLoading = false;
 
+  // 좋아요/싫어요 상태
+  String _userRating = 'none'; // 'like', 'dislike', 'none'
+  bool _isRatingLoading = false;
+  int? _localLikeCount; // 로컬 좋아요 수 (사용자 액션 반영)
+
   @override
   void initState() {
     super.initState();
     _initializePlayer();
     _loadVideoDetails();
+    _loadUserRating();
     Future(() => _loadTimerInterval());
   }
 
@@ -116,6 +122,133 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       });
     } catch (e) {
       debugPrint('Failed to save watch history: $e');
+    }
+  }
+
+  Future<void> _loadUserRating() async {
+    try {
+      final rating = await YouTubeService().getVideoRating(widget.videoId);
+      setState(() {
+        _userRating = rating;
+      });
+    } catch (e) {
+      debugPrint('Failed to load user rating: $e');
+    }
+  }
+
+  Future<void> _handleLike() async {
+    setState(() {
+      _isRatingLoading = true;
+    });
+
+    try {
+      final previousRating = _userRating;
+      final newRating = _userRating == 'like' ? 'none' : 'like';
+      await YouTubeService().rateVideo(widget.videoId, newRating);
+
+      setState(() {
+        _userRating = newRating;
+        _isRatingLoading = false;
+
+        // 로컬 좋아요 수 업데이트
+        if (_localLikeCount == null) {
+          _localLikeCount = _videoDetails?.likeCount ?? 0;
+        }
+
+        if (newRating == 'like') {
+          // 좋아요 누름
+          if (previousRating == 'dislike') {
+            _localLikeCount = _localLikeCount! + 1; // 싫어요 → 좋아요
+          } else {
+            _localLikeCount = _localLikeCount! + 1; // 미평가 → 좋아요
+          }
+        } else {
+          // 좋아요 취소
+          _localLikeCount = _localLikeCount! - 1;
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(newRating == 'like' ? '👍 좋아요!' : '좋아요 취소'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isRatingLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().contains('로그인')
+              ? '로그인이 필요합니다'
+              : '평가에 실패했습니다'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleDislike() async {
+    setState(() {
+      _isRatingLoading = true;
+    });
+
+    try {
+      final previousRating = _userRating;
+      final newRating = _userRating == 'dislike' ? 'none' : 'dislike';
+      await YouTubeService().rateVideo(widget.videoId, newRating);
+
+      setState(() {
+        _userRating = newRating;
+        _isRatingLoading = false;
+
+        // 로컬 좋아요 수 업데이트 (싫어요를 누르면 좋아요가 취소될 수 있음)
+        if (_localLikeCount == null) {
+          _localLikeCount = _videoDetails?.likeCount ?? 0;
+        }
+
+        if (newRating == 'dislike') {
+          // 싫어요 누름
+          if (previousRating == 'like') {
+            _localLikeCount = _localLikeCount! - 1; // 좋아요 → 싫어요
+          }
+        } else {
+          // 싫어요 취소
+          if (previousRating == 'dislike') {
+            // 싫어요만 취소 (좋아요 수 변화 없음)
+          }
+        }
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(newRating == 'dislike' ? '👎 싫어요' : '싫어요 취소'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isRatingLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().contains('로그인')
+              ? '로그인이 필요합니다'
+              : '평가에 실패했습니다'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -234,6 +367,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 학습 브레이크 타임 변경 감지하여 팝업 표시 (한 번만)
     ref.listen<LearningTimerState>(
       learningTimerProvider,
       (previous, next) {
@@ -418,22 +552,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 color: Theme.of(context).textTheme.bodyMedium?.color,
               ),
             ),
-            SizedBox(width: 16.w),
-            Icon(
-              Icons.thumb_up,
-              size: 16.sp,
-              color: Theme.of(context).textTheme.bodyMedium?.color,
-            ),
-            SizedBox(width: 4.w),
-            Text(
-              '${_videoDetails!.likeCount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-              style: TextStyle(
-                fontSize: 12.sp,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-              ),
-            ),
           ],
         ),
+        SizedBox(height: 12.h),
+        _buildLikeDislikeButtons(),
         SizedBox(height: 16.h),
         Text(
           '설명',
@@ -449,6 +571,97 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
         ),
+      ],
+    );
+  }
+
+  Widget _buildLikeDislikeButtons() {
+    return Row(
+      children: [
+        // 좋아요 버튼
+        InkWell(
+          onTap: _isRatingLoading ? null : _handleLike,
+          borderRadius: BorderRadius.circular(20.r),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+            decoration: BoxDecoration(
+              color: _userRating == 'like'
+                  ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(20.r),
+              border: Border.all(
+                color: _userRating == 'like'
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).dividerColor,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _userRating == 'like' ? Icons.thumb_up : Icons.thumb_up_outlined,
+                  size: 18.sp,
+                  color: _userRating == 'like'
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).textTheme.bodyMedium?.color,
+                ),
+                SizedBox(width: 4.w),
+                Text(
+                  '${(_localLikeCount ?? _videoDetails!.likeCount).toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    fontWeight: _userRating == 'like' ? FontWeight.w600 : FontWeight.normal,
+                    color: _userRating == 'like'
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        SizedBox(width: 8.w),
+
+        // 싫어요 버튼
+        InkWell(
+          onTap: _isRatingLoading ? null : _handleDislike,
+          borderRadius: BorderRadius.circular(20.r),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+            decoration: BoxDecoration(
+              color: _userRating == 'dislike'
+                  ? Colors.red.withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(20.r),
+              border: Border.all(
+                color: _userRating == 'dislike'
+                    ? Colors.red
+                    : Theme.of(context).dividerColor,
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              _userRating == 'dislike' ? Icons.thumb_down : Icons.thumb_down_outlined,
+              size: 18.sp,
+              color: _userRating == 'dislike'
+                  ? Colors.red
+                  : Theme.of(context).textTheme.bodyMedium?.color,
+            ),
+          ),
+        ),
+
+        if (_isRatingLoading)
+          Padding(
+            padding: EdgeInsets.only(left: 8.w),
+            child: SizedBox(
+              width: 16.w,
+              height: 16.h,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+              ),
+            ),
+          ),
       ],
     );
   }
