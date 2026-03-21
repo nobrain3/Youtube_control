@@ -290,6 +290,12 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
             ),
             child: _buildPlayerWidget(context),
           ),
+          if (_isPlayerReady && !_useFallbackPlayer) ...[
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 8.h),
+              child: _buildCustomControls(),
+            ),
+          ],
         ],
       );
     }

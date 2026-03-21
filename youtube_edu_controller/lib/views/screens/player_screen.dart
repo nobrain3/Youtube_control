@@ -446,11 +446,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
                           SizedBox(height: 24.h),
 
-                          // Study Timer Info
-                          _buildStudyTimerInfo(),
-
-                          SizedBox(height: 24.h),
-
                           // Video Info
                           if (_videoDetails != null) _buildVideoInfo(),
                         ],
@@ -469,51 +464,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         if (_showQuestionOverlay && _controller.value.isFullScreen)
           _buildQuestionOverlay(),
       ],
-    );
-  }
-
-  Widget _buildStudyTimerInfo() {
-    final timerState = ref.watch(learningTimerProvider);
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.w),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12.r),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.timer_outlined,
-                color: Colors.blue,
-                size: 20.sp,
-              ),
-              SizedBox(width: 8.w),
-              Text(
-                '학습 타이머',
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            '현재 세션: ${_formatDuration(timerState.currentSession)}',
-            style: TextStyle(fontSize: 14.sp),
-          ),
-          Text(
-            '다음 문제까지: ${_formatDuration(timerState.timeUntilBreak)}',
-            style: TextStyle(fontSize: 14.sp),
-          ),
-        ],
-      ),
     );
   }
 
