@@ -444,6 +444,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                             ),
                           ),
 
+                          // Custom Controls
+                          if (_isPlayerReady)
+                            _buildCustomControls(),
+
                           SizedBox(height: 24.h),
 
                           // Video Info
@@ -463,6 +467,78 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         // Global question overlay for fullscreen mode
         if (_showQuestionOverlay && _controller.value.isFullScreen)
           _buildQuestionOverlay(),
+      ],
+    );
+  }
+
+  Widget _buildCustomControls() {
+    final isPlaying = _controller.value.playerState == PlayerState.playing;
+    final currentPosition = _controller.value.position;
+    final totalDuration = _controller.metadata.duration;
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              onPressed: () {
+                final newPos = currentPosition - const Duration(seconds: 10);
+                _controller.seekTo(newPos);
+              },
+              icon: const Icon(Icons.replay_10),
+              iconSize: 32.sp,
+            ),
+            SizedBox(width: 16.w),
+            IconButton(
+              onPressed: () {
+                if (isPlaying) {
+                  _controller.pause();
+                } else {
+                  _controller.play();
+                }
+              },
+              icon: Icon(
+                isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                size: 48.sp,
+              ),
+            ),
+            SizedBox(width: 16.w),
+            IconButton(
+              onPressed: () {
+                final newPos = currentPosition + const Duration(seconds: 10);
+                _controller.seekTo(newPos);
+              },
+              icon: const Icon(Icons.forward_10),
+              iconSize: 32.sp,
+            ),
+          ],
+        ),
+        SizedBox(height: 8.h),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16.w),
+          child: Row(
+            children: [
+              Text(
+                _formatDuration(currentPosition),
+                style: TextStyle(fontSize: 12.sp),
+              ),
+              Expanded(
+                child: Slider(
+                  value: currentPosition.inSeconds.toDouble().clamp(0, totalDuration.inSeconds.toDouble()),
+                  max: totalDuration.inSeconds > 0 ? totalDuration.inSeconds.toDouble() : 1,
+                  onChanged: (value) {
+                    _controller.seekTo(Duration(seconds: value.toInt()));
+                  },
+                ),
+              ),
+              Text(
+                _formatDuration(totalDuration),
+                style: TextStyle(fontSize: 12.sp),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
