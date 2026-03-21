@@ -380,7 +380,13 @@ class YouTubeService {
     } catch (e) {
       // 오류 발생 시 인기 영상으로 폴백
       print('Error in personalized recommendations: $e');
-      return getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
+      try {
+        return await getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
+      } catch (fallbackError) {
+        print('Fallback to popular videos also failed: $fallbackError');
+        // 모든 방법이 실패하면 빈 결과 반환 (에러를 throw하지 않음)
+        return YouTubeSearchResult(videos: [], nextPageToken: null);
+      }
     }
   }
 

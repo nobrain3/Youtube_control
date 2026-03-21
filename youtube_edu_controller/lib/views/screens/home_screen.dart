@@ -52,12 +52,15 @@ class _HomeScreenState extends State<HomeScreen> {
         _nextPageToken = result.nextPageToken;
         _isLoadingRecommended = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('=== 추천 영상 로딩 오류 ===');
+      debugPrint('Error: $e');
+      debugPrint('StackTrace: $stackTrace');
       setState(() {
         _isLoadingRecommended = false;
       });
       if (mounted) {
-        String errorMessage = '영상 로딩 중 오류가 발생했습니다';
+        String errorMessage = '영상 로딩 중 오류가 발생했습니다: ${e.toString()}';
         bool showSettingsButton = false;
 
         if (e.toString().contains('YouTube API 키가 설정되지 않았습니다')) {
@@ -104,12 +107,15 @@ class _HomeScreenState extends State<HomeScreen> {
         _nextPageToken = result.nextPageToken;
         _isLoadingMoreRecommended = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('=== 추가 영상 로딩 오류 ===');
+      debugPrint('Error: $e');
+      debugPrint('StackTrace: $stackTrace');
       setState(() {
         _isLoadingMoreRecommended = false;
       });
       if (mounted) {
-        String errorMessage = '영상 로딩 중 오류가 발생했습니다';
+        String errorMessage = '영상 로딩 중 오류가 발생했습니다: ${e.toString()}';
         bool showSettingsButton = false;
 
         if (e.toString().contains('YouTube API 키가 설정되지 않았습니다')) {
