@@ -2,12 +2,125 @@ import 'package:dio/dio.dart';
 import '../../config/app_config.dart';
 import '../auth/google_auth_service.dart';
 
+class _CacheEntry {
+  final dynamic data;
+  final DateTime expiry;
+
+  _CacheEntry({required this.data, required this.expiry});
+
+  bool get isExpired => DateTime.now().isAfter(expiry);
+}
+
 class YouTubeService {
   static final YouTubeService _instance = YouTubeService._internal();
   factory YouTubeService() => _instance;
   YouTubeService._internal();
 
   final Dio _dio = Dio();
+
+  // 인메모리 캐시
+  final Map<String, _CacheEntry> _cache = {};
+
+  // 캐시에서 데이터 조회 (만료되지 않은 경우)
+  T? _getFromCache<T>(String key) {
+    final entry = _cache[key];
+    if (entry != null && !entry.isExpired) {
+      print('DEBUG: 캐시 히트 - $key');
+      return entry.data as T;
+    }
+    if (entry != null && entry.isExpired) {
+      _cache.remove(key);
+    }
+    return null;
+  }
+
+  // 캐시에 데이터 저장
+  void _setCache(String key, dynamic data, Duration ttl) {
+    _cache[key] = _CacheEntry(
+      data: data,
+      expiry: DateTime.now().add(ttl),
+    );
+  }
+
+  // 채널 ID 목록에서 uploads 플레이리스트 ID 조회 (1 unit)
+  Future<Map<String, String>> _getUploadsPlaylistIds(List<String> channelIds) async {
+    final cacheKey = 'uploads_${channelIds.join(',')}';
+    final cached = _getFromCache<Map<String, String>>(cacheKey);
+    if (cached != null) return cached;
+
+    try {
+      final response = await _dio.get(
+        'https://www.googleapis.com/youtube/v3/channels',
+        queryParameters: {
+          'part': 'contentDetails',
+          'id': channelIds.join(','),
+          'key': AppConfig.youtubeApiKey,
+        },
+      );
+
+      final List<dynamic> items = response.data['items'] ?? [];
+      final result = <String, String>{};
+      for (final item in items) {
+        final channelId = item['id'] as String;
+        final uploadsId = item['contentDetails']?['relatedPlaylists']?['uploads'] as String?;
+        if (uploadsId != null) {
+          result[channelId] = uploadsId;
+        }
+      }
+
+      print('DEBUG: channels.list 호출 - ${channelIds.length}개 채널 → ${result.length}개 uploads ID (1 unit)');
+      _setCache(cacheKey, result, const Duration(minutes: 10));
+      return result;
+    } catch (e) {
+      print('Error in _getUploadsPlaylistIds: $e');
+      return {};
+    }
+  }
+
+  // playlistItems에서 비디오 목록 조회 (1 unit per call)
+  Future<List<Map<String, dynamic>>> _getPlaylistItems(String playlistId, {int maxResults = 5}) async {
+    try {
+      final response = await _dio.get(
+        'https://www.googleapis.com/youtube/v3/playlistItems',
+        queryParameters: {
+          'part': 'snippet',
+          'playlistId': playlistId,
+          'maxResults': maxResults,
+          'key': AppConfig.youtubeApiKey,
+        },
+      );
+
+      return List<Map<String, dynamic>>.from(response.data['items'] ?? []);
+    } catch (e) {
+      print('Error in _getPlaylistItems for $playlistId: $e');
+      return [];
+    }
+  }
+
+  // 비디오 ID 목록으로 상세 정보 조회 (1 unit, 최대 50개)
+  Future<List<Map<String, dynamic>>> _getVideosByIds(List<String> videoIds, {String part = 'snippet,contentDetails'}) async {
+    if (videoIds.isEmpty) return [];
+
+    // 50개씩 배치 처리
+    final List<Map<String, dynamic>> allItems = [];
+    for (int i = 0; i < videoIds.length; i += 50) {
+      final batch = videoIds.skip(i).take(50).toList();
+      try {
+        final response = await _dio.get(
+          'https://www.googleapis.com/youtube/v3/videos',
+          queryParameters: {
+            'part': part,
+            'id': batch.join(','),
+            'key': AppConfig.youtubeApiKey,
+          },
+        );
+        allItems.addAll(List<Map<String, dynamic>>.from(response.data['items'] ?? []));
+      } catch (e) {
+        print('Error in _getVideosByIds batch: $e');
+      }
+    }
+    return allItems;
+  }
 
   Future<List<YouTubeVideo>> searchVideos(String query, {int maxResults = 20, bool excludeShorts = true}) async {
     try {
@@ -20,7 +133,7 @@ class YouTubeService {
         'safeSearch': 'strict',
         'videoEmbeddable': 'true',
       };
-      
+
       final response = await _dio.get(
         'https://www.googleapis.com/youtube/v3/search',
         queryParameters: queryParams,
@@ -124,23 +237,39 @@ class YouTubeService {
         throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
       }
 
+      // 캐시 확인
+      final cacheKey = 'shorts_popular_$maxResults';
+      final cached = _getFromCache<List<YouTubeVideo>>(cacheKey);
+      if (cached != null) return cached;
+
+      // videos.list로 인기 영상 조회 후 duration 필터 (1 unit)
       final response = await _dio.get(
-        'https://www.googleapis.com/youtube/v3/search',
+        'https://www.googleapis.com/youtube/v3/videos',
         queryParameters: {
-          'part': 'snippet',
-          'q': 'shorts',
-          'type': 'video',
-          'videoDuration': 'short',
-          'maxResults': maxResults,
+          'part': 'snippet,contentDetails',
+          'chart': 'mostPopular',
+          'regionCode': 'KR',
+          'maxResults': 50,
           'key': AppConfig.youtubeApiKey,
-          'safeSearch': 'strict',
-          'videoEmbeddable': 'true',
-          'order': 'date',
         },
       );
 
       final List<dynamic> items = response.data['items'] ?? [];
-      return items.map((item) => YouTubeVideo.fromJson(item)).toList();
+      final shorts = <YouTubeVideo>[];
+
+      for (final item in items) {
+        final duration = item['contentDetails']?['duration'] as String? ?? 'PT0S';
+        final parsedDuration = YouTubeVideoDetails._parseDuration(duration);
+        if (parsedDuration.inSeconds <= 60 && parsedDuration.inSeconds > 0) {
+          shorts.add(YouTubeVideo.fromVideoJson(item));
+        }
+      }
+
+      final result = shorts.take(maxResults).toList();
+      print('DEBUG: getShorts - videos.list로 ${items.length}개 중 ${result.length}개 Shorts 필터링 (1 unit)');
+
+      _setCache(cacheKey, result, const Duration(minutes: 5));
+      return result;
     } catch (e) {
       print('Error in getShorts: $e');
       throw Exception('Shorts를 불러오는데 실패했습니다: ${e.toString()}');
@@ -191,7 +320,7 @@ class YouTubeService {
     }
   }
 
-  // 특정 채널들의 Shorts 가져오기
+  // 특정 채널들의 Shorts 가져오기 (최적화: playlistItems 사용)
   Future<List<YouTubeVideo>> _getShortsFromChannels(
     List<String> channelIds,
     int maxResults,
@@ -201,40 +330,47 @@ class YouTubeService {
       final shuffledChannels = List<String>.from(channelIds)..shuffle();
       final selectedChannels = shuffledChannels.take(10).toList();
 
-      List<YouTubeVideo> allShorts = [];
+      // 1. uploads 플레이리스트 ID 조회 (1 unit)
+      final uploadsMap = await _getUploadsPlaylistIds(selectedChannels);
+      if (uploadsMap.isEmpty) return [];
 
-      // 각 채널마다 Shorts 가져오기
+      // 2. 각 채널의 최신 영상 조회 (채널당 1 unit)
+      final List<String> allVideoIds = [];
       for (final channelId in selectedChannels) {
-        try {
-          final response = await _dio.get(
-            'https://www.googleapis.com/youtube/v3/search',
-            queryParameters: {
-              'part': 'snippet',
-              'channelId': channelId,
-              'type': 'video',
-              'videoDuration': 'short', // Shorts만 필터링
-              'maxResults': 3, // 각 채널에서 3개씩
-              'order': 'date',
-              'videoEmbeddable': 'true',
-              'key': AppConfig.youtubeApiKey,
-            },
-          );
+        final uploadsId = uploadsMap[channelId];
+        if (uploadsId == null) continue;
 
-          final List<dynamic> items = response.data['items'] ?? [];
-          final videos = items.map((item) => YouTubeVideo.fromJson(item)).toList();
-          allShorts.addAll(videos);
-        } catch (e) {
-          // 개별 채널 오류는 무시하고 계속 진행
-          print('Error fetching shorts from channel $channelId: $e');
-          continue;
+        final items = await _getPlaylistItems(uploadsId, maxResults: 5);
+        for (final item in items) {
+          final videoId = item['snippet']?['resourceId']?['videoId'] as String?;
+          if (videoId != null) {
+            allVideoIds.add(videoId);
+          }
         }
       }
 
+      if (allVideoIds.isEmpty) return [];
+
+      // 3. 비디오 상세 정보 조회 + duration 필터 (1 unit per 50)
+      final videoDetails = await _getVideosByIds(allVideoIds);
+
+      final shorts = <YouTubeVideo>[];
+      for (final item in videoDetails) {
+        final duration = item['contentDetails']?['duration'] as String? ?? 'PT0S';
+        final parsedDuration = YouTubeVideoDetails._parseDuration(duration);
+        // 60초 이하만 Shorts로 분류
+        if (parsedDuration.inSeconds <= 60 && parsedDuration.inSeconds > 0) {
+          shorts.add(YouTubeVideo.fromVideoJson(item));
+        }
+      }
+
+      print('DEBUG: _getShortsFromChannels - ${allVideoIds.length}개 중 ${shorts.length}개 Shorts 필터링 (~${selectedChannels.length + 2} units)');
+
       // 날짜순으로 정렬 (최신순)
-      allShorts.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+      shorts.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
 
       // maxResults 개수만큼 잘라내기
-      return allShorts.take(maxResults).toList();
+      return shorts.take(maxResults).toList();
     } catch (e) {
       print('Error in _getShortsFromChannels: $e');
       throw Exception('Failed to get shorts from channels: $e');
@@ -411,7 +547,7 @@ class YouTubeService {
     }
   }
 
-  // 특정 채널들의 최신 영상 가져오기
+  // 특정 채널들의 최신 영상 가져오기 (최적화: playlistItems 사용)
   Future<YouTubeSearchResult> _getVideosFromChannels(
     List<String> channelIds,
     int maxResults,
@@ -437,34 +573,45 @@ class YouTubeService {
         }
       }
 
-      List<YouTubeVideo> allVideos = [];
+      // 1. uploads 플레이리스트 ID 조회 (1 unit)
+      final uploadsMap = await _getUploadsPlaylistIds(selectedChannels);
+      if (uploadsMap.isEmpty) {
+        return YouTubeSearchResult(videos: [], nextPageToken: null);
+      }
 
-      // 각 채널마다 최신 영상 가져오기
+      // 2. 각 채널의 최신 영상 조회 (채널당 1 unit)
+      final List<String> allVideoIds = [];
       for (final channelId in selectedChannels) {
-        try {
-          final response = await _dio.get(
-            'https://www.googleapis.com/youtube/v3/search',
-            queryParameters: {
-              'part': 'snippet',
-              'channelId': channelId,
-              'type': 'video',
-              'maxResults': 5, // 각 채널에서 5개씩
-              'order': 'date',
-              'videoEmbeddable': 'true',
-              'q': '-shorts -short', // Shorts 키워드 제외
-              'key': AppConfig.youtubeApiKey,
-            },
-          );
+        final uploadsId = uploadsMap[channelId];
+        if (uploadsId == null) continue;
 
-          final List<dynamic> items = response.data['items'] ?? [];
-          final videos = items.map((item) => YouTubeVideo.fromJson(item)).toList();
-          allVideos.addAll(videos);
-        } catch (e) {
-          // 개별 채널 오류는 무시하고 계속 진행
-          print('Error fetching from channel $channelId: $e');
-          continue;
+        final items = await _getPlaylistItems(uploadsId, maxResults: 5);
+        for (final item in items) {
+          final videoId = item['snippet']?['resourceId']?['videoId'] as String?;
+          if (videoId != null) {
+            allVideoIds.add(videoId);
+          }
         }
       }
+
+      if (allVideoIds.isEmpty) {
+        return YouTubeSearchResult(videos: [], nextPageToken: null);
+      }
+
+      // 3. 비디오 상세 정보 조회 + duration 필터 (1 unit per 50)
+      final videoDetails = await _getVideosByIds(allVideoIds);
+
+      List<YouTubeVideo> allVideos = [];
+      for (final item in videoDetails) {
+        final duration = item['contentDetails']?['duration'] as String? ?? 'PT0S';
+        final parsedDuration = YouTubeVideoDetails._parseDuration(duration);
+        // 60초 초과만 일반 영상으로 분류 (Shorts 제외)
+        if (parsedDuration.inSeconds > 60) {
+          allVideos.add(YouTubeVideo.fromVideoJson(item));
+        }
+      }
+
+      print('DEBUG: _getVideosFromChannels - ${allVideoIds.length}개 중 ${allVideos.length}개 일반 영상 필터링 (~${selectedChannels.length + 2} units)');
 
       // 날짜순으로 정렬 (최신순)
       allVideos.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
@@ -519,11 +666,23 @@ class YouTubeVideo {
   factory YouTubeVideo.fromVideoJson(Map<String, dynamic> json) {
     final snippet = json['snippet'];
     return YouTubeVideo(
-      id: json['id'],
+      id: json['id'] is String ? json['id'] : json['id'].toString(),
       title: snippet['title'],
       channelTitle: snippet['channelTitle'],
       thumbnailUrl: snippet['thumbnails']['medium']['url'],
       description: snippet['description'],
+      publishedAt: DateTime.parse(snippet['publishedAt']),
+    );
+  }
+
+  factory YouTubeVideo.fromPlaylistItemJson(Map<String, dynamic> json) {
+    final snippet = json['snippet'];
+    return YouTubeVideo(
+      id: snippet['resourceId']['videoId'],
+      title: snippet['title'],
+      channelTitle: snippet['channelTitle'] ?? snippet['videoOwnerChannelTitle'] ?? '',
+      thumbnailUrl: snippet['thumbnails']?['medium']?['url'] ?? snippet['thumbnails']?['default']?['url'] ?? '',
+      description: snippet['description'] ?? '',
       publishedAt: DateTime.parse(snippet['publishedAt']),
     );
   }
