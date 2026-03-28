@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: youtube_edu_controller
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.x'
+          channel: 'stable'
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Create .env for CI
+        run: |
+          echo "YOUTUBE_API_KEY=CI_DUMMY_KEY" > .env
+          echo "OPENAI_API_KEY=YOUR_OPENAI_API_KEY" >> .env
+
+      - run: flutter analyze --no-fatal-infos
+
+      - run: flutter test
