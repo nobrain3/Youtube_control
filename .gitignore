@@ -103,3 +103,6 @@ app.*.symbols
 
 # Personal config
 **/personal_config.dart
+
+# Sensitive tokens
+디스코드_토큰.txt

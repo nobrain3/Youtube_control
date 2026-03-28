@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
@@ -27,6 +28,7 @@ class _QuestionScreenState extends State<QuestionScreen>
   bool _isLoading = true;
   int _remainingAttempts = 3;
   bool _showExplanation = false;
+  Timer? _autoReturnTimer;
 
   // 학습 세션 관련
   StudySession? _currentSession;
@@ -194,7 +196,7 @@ class _QuestionScreenState extends State<QuestionScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Row(
           children: [
             Icon(
@@ -233,7 +235,8 @@ class _QuestionScreenState extends State<QuestionScreen>
         actions: [
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              _autoReturnTimer?.cancel();
+              Navigator.of(dialogContext).pop();
               _returnToVideo();
             },
             child: const Text('계속 시청하기'),
@@ -241,6 +244,13 @@ class _QuestionScreenState extends State<QuestionScreen>
         ],
       ),
     );
+    // 1.5초 후 자동으로 다이얼로그 닫기 + 영상 복귀
+    _autoReturnTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        Navigator.of(context).pop(); // 다이얼로그 닫기
+        _returnToVideo();
+      }
+    });
   }
 
   void _showIncorrectAnswerDialog() {
@@ -361,6 +371,7 @@ class _QuestionScreenState extends State<QuestionScreen>
 
   @override
   void dispose() {
+    _autoReturnTimer?.cancel();
     _progressController.dispose();
     _bounceController.dispose();
     // dispose에서는 비동기 작업을 수행하지 않음

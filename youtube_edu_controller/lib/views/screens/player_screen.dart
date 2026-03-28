@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -32,6 +33,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   String? _selectedAnswer;
   bool _isAnswered = false;
   bool _isQuestionLoading = false;
+  Timer? _autoReturnTimer;
 
   // 좋아요/싫어요 상태
   String _userRating = 'none'; // 'like', 'dislike', 'none'
@@ -259,6 +261,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   @override
   void dispose() {
+    _autoReturnTimer?.cancel();
     _controller.removeListener(_onPlayerStateChange);
     _controller.dispose();
     ref.read(learningTimerProvider.notifier).stopSession();
@@ -348,6 +351,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   void _hideQuestionOverlay() {
+    _autoReturnTimer?.cancel();
     setState(() {
       _showQuestionOverlay = false;
     });
@@ -1051,6 +1055,12 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       setState(() {
         _isAnswered = true;
       });
+      // 정답이면 1.5초 후 자동 복귀
+      if (_selectedAnswer == _currentQuestion!.correctAnswer) {
+        _autoReturnTimer = Timer(const Duration(milliseconds: 1500), () {
+          if (mounted) _hideQuestionOverlay();
+        });
+      }
     }
   }
 }
