@@ -16,37 +16,43 @@ flutter doctor
 3. `README.md` 확인 - 설치 및 보안 가이드
 4. 작업할 기능에 따라 해당 파일들만 선택적으로 읽기
 
-## 📋 프로젝트 현재 상태 (2024-02-14 업데이트)
+## 📋 프로젝트 현재 상태 (2026-09-19 업데이트)
 
 ### 🎯 최근 완료된 작업
-- **영상 로딩 오류 수정** ✅
-  - API 키 만료 문제 해결
-  - YouTube API 검증 로직 추가
-  - 상세한 오류 메시지 구현
-  - 디버그 로깅 시스템 추가
-- **보안 강화** ✅
-  - .env 파일 API 키 관리
-  - Git 보안 설정 완료
-  - README 보안 가이드 작성
-  - 기능명세서 보안 요구사항 추가
+- **플랫폼 전략 확정 (ADR-001)** ✅ PR #88
+  - Android/iOS 모두 자체 플레이어로 통일, OS 레벨 오버레이 방식 미채택
+  - 기능명세서 1.5절에 결정·근거·트레이드오프 기록
+- **테스트 인프라 구축** ✅ PR #87
+  - Unit Test 70개 케이스 (models/services)
+  - GitHub Actions CI (PR/push 시 analyze + test)
+  - `/test` 스킬 추가
+- **퀴즈 정답 시 자동 복귀** ✅ PR #86 (#72)
+- **YouTube API 할당량 최적화** ✅ PR #80 (#79)
+  - search.list → channels.list + playlistItems.list 대체
+  - 홈+Shorts 1회 로드 약 1,600 → 33 units
+- **재생탭 학습타이머 UI 제거** ✅ PR #75 (#74)
+- **좋아요/싫어요 버튼** ✅ PR #71 (#69)
 - **전체화면 문제 오버레이 시스템** ✅
   - 전체화면 모드에서 문제 화면 오버레이로 표시
-  - `player_screen.dart` 아키텍처 재구성
-  - 적응형 UI 시스템 구현 (전체화면/일반 모드)
-  - Stack 기반 레이어링 시스템 도입
+  - Stack 기반 이중 레이어 아키텍처
 
 ### 🔧 현재 기술 스택
 - **Frontend**: Flutter (Dart)
 - **State Management**: Riverpod
 - **UI**: flutter_screenutil, go_router
-- **APIs**: YouTube Data API v3, Google OAuth
+- **APIs**: YouTube Data API v3, Google OAuth, OpenAI API
+- **Player**: youtube_player_flutter (주) + youtube_explode_dart/chewie (대체)
+- **Test/CI**: flutter_test, GitHub Actions
 - **Storage**: SharedPreferences (로컬)
 - **Auth**: google_sign_in
 
 ### 🌳 브랜치 상태
-- **현재 브랜치**: `fix/fullscreen-video`
-- **최근 커밋**: 보안 강화 및 API 키 관리 시스템
-- **다음 작업**: main으로 PR 생성 대기
+- **기준 브랜치**: `main` (작업 시작 전 `git checkout main && git pull` 필수)
+- **열린 PR**: #88 (문서 - 플랫폼 전략 ADR)
+- **칸반보드**: Done 22 / Todo 54, 진행 중 작업 없음
+
+> 브랜치·이슈 현황은 빠르게 바뀌므로 세션 시작 시 `git branch --show-current`,
+> `gh pr list`, `gh issue list`로 실제 상태를 확인할 것
 
 ## 📁 핵심 파일 구조 및 역할
 
@@ -85,14 +91,16 @@ youtube_edu_controller/
 
 ### API 키 관리
 - **YouTube API Key**: `.env` 파일에 저장 (현재 유효한 키로 설정됨)
-- **OpenAI API Key**: 아직 설정 안됨 (향후 AI 퀴즈 기능용)
+- **OpenAI API Key**: 코드 연동 완료. `.env`에 실제 키가 있으면 AI 문제 생성 경로로
+  동작하고, 플레이스홀더(`YOUR_OPENAI_API_KEY`)면 내장 문제은행으로 폴백
+  (`question_generator_service.dart:95`)
 - **Git 보안**: `.env` 파일은 .gitignore로 제외됨
 
 ### 환경변수 구조
 ```env
 # .env 파일 구조
 YOUTUBE_API_KEY=your_actual_youtube_api_key_here  # Google Cloud Console에서 발급
-OPENAI_API_KEY=YOUR_OPENAI_API_KEY  # 아직 미설정
+OPENAI_API_KEY=your_openai_api_key_here  # 미설정 시 내장 문제은행으로 폴백
 ```
 
 ## 🐛 알려진 이슈 및 해결 상태
@@ -122,16 +130,19 @@ OPENAI_API_KEY=YOUR_OPENAI_API_KEY  # 아직 미설정
 
 ## 🎯 다음 작업 우선순위
 
-### 1. 즉시 가능한 작업들
-- [ ] 현재 브랜치 main으로 PR 생성
-- [ ] 홈화면 영상 카드 UI 개선
-- [ ] 설정 화면 API 키 설정 기능 추가
-- [ ] Shorts 재생 페이지 구현
+### 1. 출시 블로커 (최우선)
+- [ ] 앱 이름/브랜딩에서 'YouTube' 상표 제거 (#81)
+- [ ] 'Shorts' 상표 용어를 자체 용어로 변경 (#82)
+- [ ] 하단 네비게이션 구조 차별화 (#83)
+- [ ] AppBar 액션 버튼 및 영상 카드 레이아웃 차별화 (#84)
+- [ ] YouTube API 사용 고지 및 비공식 앱 면책 문구 추가 (#85)
 
-### 2. 중급 작업들 (API 이해 필요)
-- [ ] 개인화된 추천 알고리즘 개선
-- [ ] 사용자 시청 기록 저장/복원
-- [ ] 구독 채널 기반 콘텐츠 필터링
+### 2. 단기 개선
+- [ ] 홈 화면 Shorts 필터링 개선 (#77)
+- [ ] 추천 영상 동일 채널 연속 노출 방지 (#78)
+- [ ] 더블탭 10초 건너뛰기/되감기 제스처 (#76)
+- [ ] 퀴즈 여러 문제 한번에 출제 (#73)
+- [ ] 재생 화면 댓글 보기 (#70)
 
 ### 3. 고급 작업들 (새로운 기능)
 - [ ] AI 퀴즈 생성 시스템 (OpenAI API 필요)
@@ -225,4 +236,4 @@ Stack(
 - `_isQuestionLoading`: 문제 로딩 상태
 - 전체화면/일반 모드 자동 전환 지원
 
-**마지막 업데이트**: 2024-02-14 by Claude Code
+**마지막 업데이트**: 2026-09-19 by Claude Code
