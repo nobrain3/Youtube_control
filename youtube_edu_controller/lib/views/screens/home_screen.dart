@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import '../../config/app_theme.dart';
 import '../../services/api/youtube_service.dart';
 import '../../services/storage/local_storage_service.dart';
 
@@ -168,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoadingShorts = false;
       });
       if (mounted) {
-        String errorMessage = 'Shorts 로딩 중 오류가 발생했습니다';
+        String errorMessage = '클립 로딩 중 오류가 발생했습니다';
         if (e.toString().contains('YouTube API 키가 설정되지 않았습니다')) {
           errorMessage = 'YouTube API 키를 설정해주세요. 설정 > API 키 설정에서 확인하세요.';
         }
@@ -266,16 +267,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          // 미구현 기능(Cast/알림) 버튼 제거, 실제 동작하는 항목만 노출
           IconButton(
-            icon: const Icon(Icons.cast, color: Colors.black),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.black),
+            tooltip: '검색',
+            icon: const Icon(Icons.search, color: AppTheme.primaryColor),
             onPressed: () {
               setState(() {
                 _currentPageIndex = 3;
@@ -283,7 +278,8 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.account_circle, color: Colors.black),
+            tooltip: '내 프로필',
+            icon: const Icon(Icons.person_outline, color: AppTheme.primaryColor),
             onPressed: () {
               context.push('/home/profile');
             },
@@ -303,29 +299,29 @@ class _HomeScreenState extends State<HomeScreen> {
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        selectedItemColor: Colors.black,
+        selectedItemColor: AppTheme.primaryColor,
         unselectedItemColor: Colors.grey,
         showSelectedLabels: true,
         showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: '홈',
+            icon: Icon(Icons.explore_outlined),
+            activeIcon: Icon(Icons.explore),
+            label: '탐색',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.play_circle_outline),
-            activeIcon: Icon(Icons.play_circle_filled),
-            label: 'Shorts',
+            icon: Icon(Icons.bolt_outlined),
+            activeIcon: Icon(Icons.bolt),
+            label: '클립',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.video_library_outlined),
-            activeIcon: Icon(Icons.video_library),
-            label: '보관함',
+            icon: Icon(Icons.school_outlined),
+            activeIcon: Icon(Icons.school),
+            label: '내 학습',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
+            icon: Icon(Icons.tune_outlined),
+            activeIcon: Icon(Icons.tune),
             label: '설정',
           ),
         ],
@@ -390,75 +386,115 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// 추천 영상 카드.
+  ///
+  /// 원형 채널 아바타 + 우측 3dot 메뉴 구조는 YouTube 카드와 동일해 혼동을
+  /// 유발하므로 사용하지 않는다. 대신 카드형 컨테이너(둥근 모서리/그림자)와
+  /// 학습 배지를 사용해 교육 앱 성격이 드러나도록 구성한다.
   Widget _buildRecommendedVideoItem(YouTubeVideo video) {
     return Container(
-      margin: EdgeInsets.only(bottom: 16.h),
+      margin: EdgeInsets.fromLTRB(12.w, 0, 12.w, 16.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 썸네일
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Image.network(
-              video.thumbnailUrl,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: double.infinity,
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.play_circle_outline, size: 50),
-                );
-              },
+          // 썸네일 (카드 상단 모서리에 맞춰 라운딩)
+          ClipRRect(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Image.network(
+                video.thumbnailUrl,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: double.infinity,
+                    color: Colors.grey[300],
+                    child: const Icon(Icons.school_outlined, size: 50),
+                  );
+                },
+              ),
             ),
           ),
           // 영상 정보
           Padding(
-            padding: EdgeInsets.all(12.w),
-            child: Row(
+            padding: EdgeInsets.fromLTRB(14.w, 12.h, 14.w, 14.h),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 채널 아바타
-                CircleAvatar(
-                  radius: 18.r,
-                  backgroundColor: Colors.grey[300],
-                  child: Icon(Icons.account_circle, size: 36.r, color: Colors.grey[600]),
+                _buildLearningBadge(),
+                SizedBox(height: 8.h),
+                Text(
+                  video.title,
+                  style: TextStyle(
+                    fontSize: 15.sp,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    color: AppTheme.textPrimary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(width: 12.w),
-                // 제목 및 채널 정보
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        video.title,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: 4.h),
-                      Text(
+                SizedBox(height: 8.h),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.play_lesson_outlined,
+                      size: 14.sp,
+                      color: AppTheme.textSecondary,
+                    ),
+                    SizedBox(width: 6.w),
+                    Expanded(
+                      child: Text(
                         video.channelTitle,
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: Colors.grey[600],
+                          color: AppTheme.textSecondary,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                ),
-                // 더보기 버튼
-                IconButton(
-                  icon: Icon(Icons.more_vert, color: Colors.black),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () {},
+                    ),
+                  ],
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 교육 앱 성격을 드러내는 학습 배지.
+  Widget _buildLearningBadge() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999.r),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.school_outlined, size: 12.sp, color: AppTheme.primaryColor),
+          SizedBox(width: 4.w),
+          Text(
+            '학습 영상',
+            style: TextStyle(
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.primaryColor,
             ),
           ),
         ],
@@ -481,7 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Padding(
           padding: EdgeInsets.all(24.h),
           child: Text(
-            'Shorts를 불러올 수 없습니다',
+            '클립을 불러올 수 없습니다',
             style: TextStyle(
               fontSize: 14.sp,
               color: Colors.grey[600],
@@ -560,27 +596,27 @@ class _HomeScreenState extends State<HomeScreen> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          // Shorts 아이콘
+          // 클립 배지
           Positioned(
             top: 8.h,
             right: 8.w,
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(4.r),
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(999.r),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.play_circle_filled,
+                    Icons.bolt,
                     color: Colors.white,
                     size: 12.sp,
                   ),
                   SizedBox(width: 2.w),
                   Text(
-                    'Shorts',
+                    '클립',
                     style: TextStyle(
                       fontSize: 10.sp,
                       color: Colors.white,
