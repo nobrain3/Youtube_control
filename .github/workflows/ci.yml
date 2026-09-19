@@ -17,7 +17,9 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.x'
+          # pubspec.yaml이 Dart ^3.9.2를 요구하고 소스가 RadioGroup(Flutter 3.35+)을
+          # 사용하므로 버전을 고정하지 않고 최신 stable을 사용한다.
+          # (기존 3.24.x 고정은 Dart 3.5.4를 설치해 pub get 단계에서 항상 실패했음)
           channel: 'stable'
           cache: true
 
