@@ -22,7 +22,7 @@
 
 ### 기본 정보
 - **프로젝트명**: YouTube 교육 컨트롤러 (YouTube Edu Controller)
-- **기술 스택**: Flutter 3.9.2+, Dart, Riverpod
+- **기술 스택**: Flutter 3.35+ (Dart SDK ^3.9.2), Riverpod
 - **저장소**: https://github.com/nobrain3/Youtube_control
 - **칸반보드**: https://github.com/users/nobrain3/projects/2
 - **메인 브랜치**: `main`

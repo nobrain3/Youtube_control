@@ -293,7 +293,7 @@ class YouTubeService {
       // 로그인하지 않았거나 토큰이 없으면 일반 Shorts 반환
       if (accessToken == null) {
         print('No access token - using general shorts');
-        return getShorts(maxResults: maxResults);
+        return await getShorts(maxResults: maxResults);
       }
 
       // 1. 사용자의 구독 채널 가져오기
@@ -303,7 +303,7 @@ class YouTubeService {
       if (channelIds.isEmpty) {
         // 구독 채널이 없으면 일반 Shorts 반환
         print('No subscriptions - using general shorts');
-        return getShorts(maxResults: maxResults);
+        return await getShorts(maxResults: maxResults);
       }
 
       // 2. 구독 채널의 Shorts 가져오기
@@ -313,7 +313,7 @@ class YouTubeService {
       // 구독 채널에서 Shorts를 가져오지 못하면 일반 Shorts로 fallback
       if (shorts.isEmpty) {
         print('No shorts from subscriptions - using general shorts');
-        return getShorts(maxResults: maxResults);
+        return await getShorts(maxResults: maxResults);
       }
 
       return shorts;
@@ -493,7 +493,7 @@ class YouTubeService {
       // 로그인하지 않았거나 토큰이 없으면 인기 영상 반환
       if (accessToken == null) {
         print('No access token - using popular videos');
-        return getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
+        return await getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
       }
 
       // 1. 사용자의 구독 채널 가져오기
@@ -503,7 +503,7 @@ class YouTubeService {
       if (channelIds.isEmpty) {
         // 구독 채널이 없으면 인기 영상 반환
         print('No subscriptions - using popular videos');
-        return getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
+        return await getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
       }
 
       // 2. 구독 채널의 최신 영상 가져오기
@@ -513,7 +513,7 @@ class YouTubeService {
       // 구독 채널에서 영상을 가져오지 못하면 인기 영상으로 fallback
       if (videos.videos.isEmpty) {
         print('No videos from subscriptions - using popular videos');
-        return getPopularVideos(maxResults: maxResults, pageToken: pageToken);
+        return await getPopularVideos(maxResults: maxResults, pageToken: pageToken);
       }
 
       return videos;
