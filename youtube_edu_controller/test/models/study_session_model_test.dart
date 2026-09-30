@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:youtube_edu_controller/models/study_session_model.dart';
+import 'package:qbeen/models/study_session_model.dart';
 
 void main() {
   group('StudySession', () {

@@ -257,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SizedBox(width: 4.w),
             Text(
-              'YouTube',
+              '큐비엔',
               style: TextStyle(
                 color: Colors.black,
                 fontSize: 20.sp,

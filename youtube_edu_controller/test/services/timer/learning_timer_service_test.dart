@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_async/fake_async.dart';
-import 'package:youtube_edu_controller/services/timer/learning_timer_service.dart';
-import 'package:youtube_edu_controller/config/app_config.dart';
+import 'package:qbeen/services/timer/learning_timer_service.dart';
+import 'package:qbeen/config/app_config.dart';
 
 void main() {
   group('LearningTimerService', () {
