@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:youtube_edu_controller/services/storage/local_storage_service.dart';
-import 'package:youtube_edu_controller/models/user_model.dart';
-import 'package:youtube_edu_controller/models/study_session_model.dart';
+import 'package:qbeen/services/storage/local_storage_service.dart';
+import 'package:qbeen/models/user_model.dart';
+import 'package:qbeen/models/study_session_model.dart';
 
 void main() {
   group('LocalStorageService', () {
