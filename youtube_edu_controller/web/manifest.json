@@ -1,6 +1,6 @@
 {
-    "name": "youtube_edu_controller",
-    "short_name": "youtube_edu_controller",
+    "name": "큐비엔",
+    "short_name": "큐비엔",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
