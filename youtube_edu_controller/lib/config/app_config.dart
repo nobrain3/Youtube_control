@@ -15,6 +15,11 @@ class AppConfig {
   static const int maxStudyInterval = 600;
   static const int maxRetryAttempts = 3;
 
+  // 한 번의 타이머 만료 시 출제되는 퀴즈 문제 수
+  static const int defaultQuizQuestionCount = 3;
+  static const int minQuizQuestionCount = 1;
+  static const int maxQuizQuestionCount = 10;
+
   // Grade Levels
   static const Map<int, String> gradeLevels = {
     1: 'Elementary 1',
