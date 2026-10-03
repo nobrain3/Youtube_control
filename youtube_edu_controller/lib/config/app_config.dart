@@ -1,7 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
-  static const String appName = 'YouTube Edu Controller';
+  static const String appName = '큐비엔';
   static const String appVersion = '1.0.0';
 
   // API Configuration
