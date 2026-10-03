@@ -22,13 +22,13 @@ void main() async {
 
   runApp(
     ProviderScope(
-      child: const YouTubeEduApp(),
+      child: const QBeeNApp(),
     ),
   );
 }
 
-class YouTubeEduApp extends StatelessWidget {
-  const YouTubeEduApp({super.key});
+class QBeeNApp extends StatelessWidget {
+  const QBeeNApp({super.key});
 
   @override
   Widget build(BuildContext context) {
