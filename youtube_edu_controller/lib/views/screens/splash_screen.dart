@@ -99,7 +99,7 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               SizedBox(height: 8.h),
               Text(
-                '학습과 재미가 함께하는 YouTube',
+                '학습과 재미가 함께하는 영상 시간',
                 style: TextStyle(
                   fontSize: 16.sp,
                   color: Colors.white.withOpacity(0.8),
