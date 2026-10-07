@@ -29,11 +29,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   bool _isLoading = true;
   bool _isPlayerReady = false;
   bool _showQuestionOverlay = false;
-  Question? _currentQuestion;
+
+  /// 한 번의 타이머 만료로 출제되는 문제 묶음 (#73).
+  List<Question> _questions = [];
+  int _currentQuestionIndex = 0;
+
   String? _selectedAnswer;
   bool _isAnswered = false;
   bool _isQuestionLoading = false;
   Timer? _autoReturnTimer;
+
+  /// 현재 표시 중인 문제. 묶음이 비었거나 끝났으면 null.
+  Question? get _currentQuestion =>
+      (_currentQuestionIndex >= 0 && _currentQuestionIndex < _questions.length)
+          ? _questions[_currentQuestionIndex]
+          : null;
+
+  /// 현재 문제 뒤에 남은 문제가 있는지.
+  bool get _hasNextQuestion => _currentQuestionIndex < _questions.length - 1;
 
   // 좋아요/싫어요 상태
   String _userRating = 'none'; // 'like', 'dislike', 'none'
@@ -314,26 +327,31 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     setState(() {
       _showQuestionOverlay = true;
       _isQuestionLoading = true;
-      _currentQuestion = null;
+      _questions = [];
+      _currentQuestionIndex = 0;
       _selectedAnswer = null;
       _isAnswered = false;
     });
 
-    _loadQuestion();
+    _loadQuestions();
   }
 
-  Future<void> _loadQuestion() async {
+  Future<void> _loadQuestions() async {
     try {
-      final userGrade = LocalStorageService().getUserGrade();
+      final storage = LocalStorageService();
+      final userGrade = storage.getUserGrade();
+      final questionCount = storage.getQuizQuestionCount();
 
-      final question = await QuestionGeneratorService().generateQuestion(
+      final questions = await QuestionGeneratorService().generateMultipleQuestions(
         subject: 'general',
         grade: userGrade,
+        count: questionCount,
       );
 
       if (mounted) {
         setState(() {
-          _currentQuestion = question;
+          _questions = questions;
+          _currentQuestionIndex = 0;
           _isQuestionLoading = false;
         });
       }
@@ -348,6 +366,22 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _hideQuestionOverlay();
       }
     }
+  }
+
+  /// 다음 문제로 넘어간다. 남은 문제가 없으면 영상으로 복귀한다.
+  void _goToNextQuestion() {
+    _autoReturnTimer?.cancel();
+
+    if (!_hasNextQuestion) {
+      _hideQuestionOverlay();
+      return;
+    }
+
+    setState(() {
+      _currentQuestionIndex++;
+      _selectedAnswer = null;
+      _isAnswered = false;
+    });
   }
 
   void _hideQuestionOverlay() {
@@ -804,13 +838,39 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              '학습 문제 📚',
-              style: TextStyle(
-                fontSize: (20 * scaleFactor).sp,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
-              ),
+            Row(
+              children: [
+                Text(
+                  '학습 문제 📚',
+                  style: TextStyle(
+                    fontSize: (20 * scaleFactor).sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+                // 문제가 2개 이상일 때만 진행률 표시 (#73)
+                if (_questions.length > 1) ...[
+                  SizedBox(width: 8.w),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 8.w,
+                      vertical: 2.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999.r),
+                    ),
+                    child: Text(
+                      '${_currentQuestionIndex + 1}/${_questions.length}',
+                      style: TextStyle(
+                        fontSize: (13 * scaleFactor).sp,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.blue,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
             IconButton(
               onPressed: _hideQuestionOverlay,
@@ -821,6 +881,19 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ),
           ],
         ),
+
+        // 진행률 바 (문제가 2개 이상일 때)
+        if (_questions.length > 1) ...[
+          SizedBox(height: 12.h),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999.r),
+            child: LinearProgressIndicator(
+              value: (_currentQuestionIndex + 1) / _questions.length,
+              minHeight: 6.h,
+              backgroundColor: Colors.grey.withValues(alpha: 0.2),
+            ),
+          ),
+        ],
         SizedBox(height: 20.h),
 
         // Question
@@ -995,10 +1068,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ),
           ),
           SizedBox(height: 16.h),
-          Container(
+          SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _hideQuestionOverlay,
+              onPressed: _goToNextQuestion,
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(vertical: 16.h),
                 shape: RoundedRectangleBorder(
@@ -1006,7 +1079,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
                 ),
               ),
               child: Text(
-                '영상으로 돌아가기',
+                // 남은 문제가 있으면 다음 문제로, 없으면 영상 복귀 (#73)
+                _hasNextQuestion
+                    ? '다음 문제 (${_currentQuestionIndex + 2}/${_questions.length})'
+                    : '영상으로 돌아가기',
                 style: TextStyle(fontSize: 16.sp),
               ),
             ),
@@ -1055,10 +1131,10 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       setState(() {
         _isAnswered = true;
       });
-      // 정답이면 1.5초 후 자동 복귀
+      // 정답이면 1.5초 후 다음 문제로 진행 (마지막 문제면 영상 복귀)
       if (_selectedAnswer == _currentQuestion!.correctAnswer) {
         _autoReturnTimer = Timer(const Duration(milliseconds: 1500), () {
-          if (mounted) _hideQuestionOverlay();
+          if (mounted) _goToNextQuestion();
         });
       }
     }

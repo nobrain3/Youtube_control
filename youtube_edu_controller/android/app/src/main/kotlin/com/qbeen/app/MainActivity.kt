@@ -1,4 +1,4 @@
-package com.youtubedu.controller.youtube_edu_controller
+package com.qbeen.app
 
 import io.flutter.embedding.android.FlutterActivity
 
