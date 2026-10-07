@@ -106,3 +106,9 @@ app.*.symbols
 
 # Sensitive tokens
 디스코드_토큰.txt
+# Firebase CLI / 에뮬레이터 로그·캐시 (#99)
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+.firebase/

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/app_config.dart';
 import '../../services/storage/local_storage_service.dart';
+import '../../services/auth/auth_service.dart';
 
 class GradeSettingsScreen extends StatefulWidget {
   const GradeSettingsScreen({super.key});
@@ -33,6 +34,8 @@ class _GradeSettingsScreenState extends State<GradeSettingsScreen> {
       _isSaving = true;
     });
     await LocalStorageService().setUserGrade(grade);
+    // 로그인 상태면 아이 프로필에도 반영 (#99). 실패해도 로컬 저장은 유지된다.
+    await AuthService().pushSettings();
     if (!mounted) return;
     setState(() {
       _selectedGrade = grade;

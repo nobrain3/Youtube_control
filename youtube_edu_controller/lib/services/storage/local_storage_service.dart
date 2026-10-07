@@ -211,6 +211,19 @@ class LocalStorageService {
     return prefs.getInt('user_grade') ?? 3; // 기본값: 3학년
   }
 
+  /// 로그인한 보호자 계정에서 현재 사용 중인 아이 프로필 ID (#99).
+  Future<void> setActiveChildId(String childId) async {
+    await prefs.setString('active_child_id', childId);
+  }
+
+  String? getActiveChildId() {
+    return prefs.getString('active_child_id');
+  }
+
+  Future<void> clearActiveChildId() async {
+    await prefs.remove('active_child_id');
+  }
+
   Future<void> setDifficultyLevel(int level) async {
     await prefs.setInt('difficulty_level', level);
   }

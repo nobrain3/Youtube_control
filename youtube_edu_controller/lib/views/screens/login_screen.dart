@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_routes.dart';
-import '../../services/auth/google_auth_service.dart';
+import '../../services/auth/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -33,14 +33,68 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      await AuthService().signInWithEmail(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+      if (mounted) context.go(AppRoutes.home);
+    } on AuthFailure catch (e) {
+      _showError(e.message);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
-    setState(() {
-      _isLoading = false;
-    });
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
 
-    if (mounted) {
-      context.go(AppRoutes.home);
+  /// 비밀번호 재설정 메일 발송. 이메일 입력란에 값이 있으면 미리 채운다.
+  Future<void> _handleForgotPassword() async {
+    final controller = TextEditingController(text: _emailController.text);
+    final email = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('비밀번호 재설정'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: '가입한 이메일',
+            prefixIcon: Icon(Icons.email_outlined),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('메일 보내기'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (email == null || email.trim().isEmpty) return;
+
+    try {
+      await AuthService().sendPasswordResetEmail(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('비밀번호 재설정 메일을 보냈습니다. 메일함을 확인해주세요.')),
+      );
+    } on AuthFailure catch (e) {
+      _showError(e.message);
     }
   }
 
@@ -50,26 +104,21 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final account = await GoogleAuthService().signIn();
+      final user = await AuthService().signInWithGoogle();
 
-      if (account != null && mounted) {
+      if (user != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${account.displayName}님, 환영합니다!'),
+            content: Text('${user.displayName ?? '보호자'}님, 환영합니다!'),
             backgroundColor: Colors.green,
           ),
         );
         context.go(AppRoutes.home);
       }
+    } on AuthFailure catch (e) {
+      _showError(e.message);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Google 로그인 실패: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showError('Google 로그인 실패: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -100,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 SizedBox(height: 8.h),
                 Text(
-                  '계정에 로그인하여 학습을 계속하세요',
+                  '보호자 계정으로 로그인하세요',
                   style: TextStyle(
                     fontSize: 16.sp,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -159,9 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {
-                      // TODO: Implement forgot password
-                    },
+                    onPressed: _isLoading ? null : _handleForgotPassword,
                     child: Text(
                       '비밀번호를 잊으셨나요?',
                       style: TextStyle(fontSize: 14.sp),
@@ -236,7 +283,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      '계정이 없으신가요? ',
+                      '보호자 계정이 없으신가요? ',
                       style: TextStyle(
                         fontSize: 14.sp,
                         color: Theme.of(context).textTheme.bodyMedium?.color,

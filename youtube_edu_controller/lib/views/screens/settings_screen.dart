@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
 import '../../config/app_routes.dart';
+import '../../services/auth/auth_service.dart';
 import '../../services/storage/local_storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -45,6 +46,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return AppConfig.gradeLevels[grade] ?? '선택 안 함';
   }
 
+  Future<void> _confirmSignOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('로그아웃'),
+        content: const Text('로그아웃하시겠어요? 이 기기의 학습 설정은 그대로 유지됩니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('로그아웃'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await AuthService().signOut();
+    if (mounted) context.go(AppRoutes.login);
+  }
+
+  /// 보호자 계정 섹션 (#99). 로그인 여부에 따라 계정 정보/로그인 버튼을 보여준다.
+  Widget _buildAccountCard() {
+    final user = AuthService().currentUser;
+    if (user == null) {
+      return Card(
+        child: _SettingsTile(
+          icon: Icons.login,
+          title: '보호자 계정으로 로그인',
+          subtitle: '로그인하면 학습 설정이 클라우드에 저장됩니다',
+          onTap: () => context.go(AppRoutes.login),
+        ),
+      );
+    }
+    final isGoogle = user.providerData.any((p) => p.providerId == 'google.com');
+    return Card(
+      child: Column(
+        children: [
+          _SettingsTile(
+            icon: Icons.verified_user_outlined,
+            title: user.displayName?.isNotEmpty == true ? user.displayName! : '보호자',
+            subtitle: '${user.email ?? ''}${isGoogle ? ' · Google 계정' : ''}',
+            showChevron: false,
+          ),
+          const Divider(height: 1),
+          _SettingsTile(
+            icon: Icons.logout,
+            title: '로그아웃',
+            subtitle: '이 기기에서 보호자 계정 로그아웃',
+            onTap: _confirmSignOut,
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openExternalLink(String url) async {
     final uri = Uri.parse(url);
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -64,6 +123,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         children: [
+          const _SectionHeader(title: '보호자 계정'),
+          _buildAccountCard(),
+          const SizedBox(height: 16),
           const _SectionHeader(title: '사용자 정보'),
           Card(
             child: Column(

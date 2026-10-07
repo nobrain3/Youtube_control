@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -13,6 +14,9 @@ void main() async {
 
   // 환경 변수 로드
   await dotenv.load(fileName: ".env");
+
+  // Firebase 초기화 (#99). Android는 google-services.json 설정을 사용한다.
+  await Firebase.initializeApp();
 
   // 로컬 스토리지 초기화
   await LocalStorageService().init();

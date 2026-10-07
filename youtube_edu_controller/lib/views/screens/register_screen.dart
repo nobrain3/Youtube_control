@@ -3,7 +3,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_routes.dart';
 import '../../config/app_config.dart';
+import '../../services/auth/auth_service.dart';
 
+/// 보호자 회원가입 (#99).
+///
+/// 이메일 가입은 보호자만 받는다. 아이는 보호자 계정 아래 프로필로 만들고,
+/// 아이의 이메일·생년월일 같은 개인정보는 받지 않는다 (COPPA, #18).
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -13,12 +18,12 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _guardianNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _childNameController = TextEditingController();
 
-  DateTime? _selectedBirthDate;
   int? _selectedGrade;
 
   bool _isPasswordVisible = false;
@@ -27,38 +32,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _guardianNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _childNameController.dispose();
     super.dispose();
-  }
-
-  Future<void> _selectBirthDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime(2010),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2020),
-    );
-    if (picked != null && picked != _selectedBirthDate) {
-      setState(() {
-        _selectedBirthDate = picked;
-      });
-    }
   }
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedBirthDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('생년월일을 선택해주세요')),
-      );
-      return;
-    }
     if (_selectedGrade == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('학년을 선택해주세요')),
+        const SnackBar(content: Text('아이의 학년을 선택해주세요')),
       );
       return;
     }
@@ -67,22 +53,48 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _isLoading = true;
     });
 
-    await Future.delayed(const Duration(seconds: 2));
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (mounted) {
-      context.go(AppRoutes.home);
+    try {
+      await AuthService().signUpWithEmail(
+        guardianName: _guardianNameController.text,
+        email: _emailController.text,
+        password: _passwordController.text,
+        childName: _childNameController.text,
+        childGrade: _selectedGrade!,
+      );
+      if (mounted) context.go(AppRoutes.home);
+    } on AuthFailure catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12.h),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 16.sp,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('회원가입'),
+        title: const Text('보호자 회원가입'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(AppRoutes.login),
@@ -97,7 +109,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '새 계정 만들기',
+                  '보호자 계정 만들기',
                   style: TextStyle(
                     fontSize: 28.sp,
                     fontWeight: FontWeight.bold,
@@ -105,7 +117,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 SizedBox(height: 8.h),
                 Text(
-                  '학습 여정을 시작해보세요',
+                  '아이의 학습을 관리할 보호자 계정을 만드세요',
                   style: TextStyle(
                     fontSize: 16.sp,
                     color: Theme.of(context).textTheme.bodyMedium?.color,
@@ -113,23 +125,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 SizedBox(height: 32.h),
 
-                // Name Field
+                _sectionTitle('보호자 정보'),
+
                 TextFormField(
-                  controller: _nameController,
+                  controller: _guardianNameController,
+                  // Firestore 규칙의 displayName 최대 길이와 일치 (firestore.rules)
+                  maxLength: 100,
                   decoration: const InputDecoration(
-                    labelText: '이름',
+                    labelText: '보호자 이름',
                     prefixIcon: Icon(Icons.person_outlined),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '이름을 입력해주세요';
+                    if (value == null || value.trim().isEmpty) {
+                      return '보호자 이름을 입력해주세요';
                     }
                     return null;
                   },
                 ),
                 SizedBox(height: 16.h),
 
-                // Email Field
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -142,7 +156,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       return '이메일을 입력해주세요';
                     }
                     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                        .hasMatch(value)) {
+                        .hasMatch(value.trim())) {
                       return '올바른 이메일 형식이 아닙니다';
                     }
                     return null;
@@ -150,50 +164,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 SizedBox(height: 16.h),
 
-                // Birth Date Field
-                InkWell(
-                  onTap: _selectBirthDate,
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: '생년월일',
-                      prefixIcon: Icon(Icons.calendar_today_outlined),
-                    ),
-                    child: Text(
-                      _selectedBirthDate != null
-                          ? '${_selectedBirthDate!.year}년 ${_selectedBirthDate!.month}월 ${_selectedBirthDate!.day}일'
-                          : '생년월일을 선택하세요',
-                      style: TextStyle(
-                        color: _selectedBirthDate != null
-                            ? Theme.of(context).textTheme.bodyLarge?.color
-                            : Theme.of(context).textTheme.bodyMedium?.color,
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(height: 16.h),
-
-                // Grade Dropdown
-                DropdownButtonFormField<int>(
-                  value: _selectedGrade,
-                  decoration: const InputDecoration(
-                    labelText: '학년',
-                    prefixIcon: Icon(Icons.school_outlined),
-                  ),
-                  items: AppConfig.gradeLevels.entries.map((entry) {
-                    return DropdownMenuItem<int>(
-                      value: entry.key,
-                      child: Text(entry.value),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedGrade = value;
-                    });
-                  },
-                ),
-                SizedBox(height: 16.h),
-
-                // Password Field
                 TextFormField(
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
@@ -225,7 +195,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 SizedBox(height: 16.h),
 
-                // Confirm Password Field
                 TextFormField(
                   controller: _confirmPasswordController,
                   obscureText: !_isConfirmPasswordVisible,
@@ -257,7 +226,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 SizedBox(height: 32.h),
 
-                // Register Button
+                _sectionTitle('아이 정보'),
+
+                TextFormField(
+                  controller: _childNameController,
+                  // Firestore 규칙의 아이 name 최대 길이와 일치 (firestore.rules)
+                  maxLength: 50,
+                  decoration: const InputDecoration(
+                    labelText: '아이 이름 또는 별명',
+                    prefixIcon: Icon(Icons.child_care_outlined),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return '아이 이름 또는 별명을 입력해주세요';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 16.h),
+
+                DropdownButtonFormField<int>(
+                  initialValue: _selectedGrade,
+                  decoration: const InputDecoration(
+                    labelText: '아이 학년',
+                    prefixIcon: Icon(Icons.school_outlined),
+                  ),
+                  items: AppConfig.gradeLevels.entries.map((entry) {
+                    return DropdownMenuItem<int>(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedGrade = value;
+                    });
+                  },
+                ),
+                SizedBox(height: 32.h),
+
                 SizedBox(
                   width: double.infinity,
                   height: 56.h,
@@ -274,14 +281,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           )
                         : Text(
-                            '회원가입',
+                            '보호자 계정 만들기',
                             style: TextStyle(fontSize: 16.sp),
                           ),
                   ),
                 ),
                 SizedBox(height: 24.h),
 
-                // Login Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

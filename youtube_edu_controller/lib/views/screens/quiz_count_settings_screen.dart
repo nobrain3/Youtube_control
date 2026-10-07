@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../config/app_config.dart';
 import '../../services/storage/local_storage_service.dart';
+import '../../services/auth/auth_service.dart';
 
 /// 타이머 만료 시 한 번에 출제되는 퀴즈 문제 수 설정 화면 (#73).
 class QuizCountSettingsScreen extends StatefulWidget {
@@ -71,6 +72,8 @@ class _QuizCountSettingsScreenState extends State<QuizCountSettingsScreen> {
       _isSaving = true;
     });
     await LocalStorageService().setQuizQuestionCount(count);
+    // 로그인 상태면 아이 프로필에도 반영 (#99). 실패해도 로컬 저장은 유지된다.
+    await AuthService().pushSettings();
     if (!mounted) return;
     setState(() {
       _questionCount = count;

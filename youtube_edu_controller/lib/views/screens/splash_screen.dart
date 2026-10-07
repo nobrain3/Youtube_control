@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_config.dart';
 import '../../config/app_routes.dart';
+import '../../services/auth/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -42,9 +43,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _navigateToNext() {
     Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        context.go(AppRoutes.onboarding);
-      }
+      if (!mounted) return;
+      // 보호자 계정으로 이미 로그인돼 있으면 온보딩·로그인을 건너뛴다 (#99)
+      context.go(AuthService().isSignedIn ? AppRoutes.home : AppRoutes.onboarding);
     });
   }
 
