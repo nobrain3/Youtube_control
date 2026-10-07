@@ -16,8 +16,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<OnboardingPage> _pages = [
     OnboardingPage(
-      title: '안전한 YouTube 시청',
-      description: '아이들에게 적합한 콘텐츠만 선별하여\n안전한 환경에서 YouTube를 즐겨보세요',
+      title: '안전한 영상 시청',
+      description: '아이들에게 적합한 콘텐츠만 선별하여\n안전한 환경에서 영상을 즐겨보세요',
       icon: Icons.shield_outlined,
     ),
     OnboardingPage(
