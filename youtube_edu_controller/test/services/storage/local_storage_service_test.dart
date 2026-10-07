@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:qbeen/config/app_config.dart';
 import 'package:qbeen/services/storage/local_storage_service.dart';
 import 'package:qbeen/models/user_model.dart';
 import 'package:qbeen/models/study_session_model.dart';
@@ -22,6 +23,26 @@ void main() {
       test('setStudyInterval should persist value', () async {
         await service.setStudyInterval(25);
         expect(service.getStudyInterval(), 25);
+      });
+
+      test('getQuizQuestionCount should return default 3', () {
+        expect(service.getQuizQuestionCount(),
+            AppConfig.defaultQuizQuestionCount);
+      });
+
+      test('setQuizQuestionCount should persist value', () async {
+        await service.setQuizQuestionCount(5);
+        expect(service.getQuizQuestionCount(), 5);
+      });
+
+      test('setQuizQuestionCount should clamp value below minimum', () async {
+        await service.setQuizQuestionCount(0);
+        expect(service.getQuizQuestionCount(), AppConfig.minQuizQuestionCount);
+      });
+
+      test('setQuizQuestionCount should clamp value above maximum', () async {
+        await service.setQuizQuestionCount(99);
+        expect(service.getQuizQuestionCount(), AppConfig.maxQuizQuestionCount);
       });
 
       test('getPreferredSubjects should return default [Mathematics]', () {

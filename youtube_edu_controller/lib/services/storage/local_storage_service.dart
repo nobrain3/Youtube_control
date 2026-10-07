@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../config/app_config.dart';
 import '../../models/user_model.dart';
 import '../../models/study_session_model.dart';
 
@@ -175,6 +176,25 @@ class LocalStorageService {
     return prefs.getInt('study_interval') ?? 15; // 기본값: 15분
   }
 
+  /// 한 번의 타이머 만료 시 출제되는 문제 수를 저장한다.
+  /// 허용 범위를 벗어난 값은 범위 내로 보정한다.
+  Future<void> setQuizQuestionCount(int count) async {
+    final clamped = count.clamp(
+      AppConfig.minQuizQuestionCount,
+      AppConfig.maxQuizQuestionCount,
+    );
+    await prefs.setInt('quiz_question_count', clamped);
+  }
+
+  int getQuizQuestionCount() {
+    final stored = prefs.getInt('quiz_question_count');
+    if (stored == null) return AppConfig.defaultQuizQuestionCount;
+    return stored.clamp(
+      AppConfig.minQuizQuestionCount,
+      AppConfig.maxQuizQuestionCount,
+    );
+  }
+
   Future<void> setPreferredSubjects(List<String> subjects) async {
     await prefs.setStringList('preferred_subjects', subjects);
   }
@@ -289,6 +309,7 @@ class LocalStorageService {
       'history': history,
       'settings': {
         'studyInterval': getStudyInterval(),
+        'quizQuestionCount': getQuizQuestionCount(),
         'preferredSubjects': getPreferredSubjects(),
         'userGrade': getUserGrade(),
         'difficultyLevel': getDifficultyLevel(),
@@ -327,6 +348,9 @@ class LocalStorageService {
 
         if (settings['studyInterval'] != null) {
           await setStudyInterval(settings['studyInterval']);
+        }
+        if (settings['quizQuestionCount'] != null) {
+          await setQuizQuestionCount(settings['quizQuestionCount']);
         }
         if (settings['preferredSubjects'] != null) {
           await setPreferredSubjects(

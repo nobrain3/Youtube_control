@@ -15,6 +15,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   int _userGrade = 3;
   int _studyInterval = AppConfig.defaultStudyInterval;
+  int _quizQuestionCount = AppConfig.defaultQuizQuestionCount;
 
   @override
   void initState() {
@@ -26,10 +27,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final storage = LocalStorageService();
     final grade = storage.getUserGrade();
     final interval = storage.getStudyInterval();
+    final quizCount = storage.getQuizQuestionCount();
     if (!mounted) return;
     setState(() {
       _userGrade = grade;
       _studyInterval = interval;
+      _quizQuestionCount = quizCount;
     });
   }
 
@@ -84,6 +87,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: '플레이 시간(타이머 간격)',
                   subtitle: '$_studyInterval분 간격',
                   onTap: () => _openSettings(AppRoutes.settingsTimer),
+                ),
+                const Divider(height: 1),
+                _SettingsTile(
+                  icon: Icons.quiz_outlined,
+                  title: '퀴즈 문제 수',
+                  subtitle: '한 번에 $_quizQuestionCount문제',
+                  onTap: () => _openSettings(AppRoutes.settingsQuizCount),
                 ),
               ],
             ),
