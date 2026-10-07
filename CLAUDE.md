@@ -43,8 +43,10 @@ flutter doctor
 - **APIs**: YouTube Data API v3, Google OAuth, OpenAI API
 - **Player**: youtube_player_flutter (주) + youtube_explode_dart/chewie (대체)
 - **Test/CI**: flutter_test, GitHub Actions
-- **Storage**: SharedPreferences (로컬)
-- **Auth**: google_sign_in
+- **Storage**: SharedPreferences (로컬) + Cloud Firestore (보호자 로그인 시 동기화, #99)
+- **Auth**: Firebase Auth (보호자: 이메일/비밀번호, Google) + google_sign_in v6 (YouTube 스코프)
+- **Firebase**: 프로젝트 `youtube-edu-control`, 설정은 `youtube_edu_controller/firebase.json`,
+  보안 규칙 `firestore.rules`. Firebase 작업은 Firebase 플러그인 스킬(`firebase:*`) 사용
 
 ### 🌳 브랜치 상태
 - **기준 브랜치**: `main` (작업 시작 전 `git checkout main && git pull` 필수)
