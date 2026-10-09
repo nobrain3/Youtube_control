@@ -59,32 +59,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// 비밀번호 재설정 메일 발송. 이메일 입력란에 값이 있으면 미리 채운다.
   Future<void> _handleForgotPassword() async {
-    final controller = TextEditingController(text: _emailController.text);
     final email = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('비밀번호 재설정'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: '가입한 이메일',
-            prefixIcon: Icon(Icons.email_outlined),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('메일 보내기'),
-          ),
-        ],
-      ),
+      builder: (context) =>
+          _PasswordResetDialog(initialEmail: _emailController.text),
     );
-    controller.dispose();
     if (email == null || email.trim().isEmpty) return;
 
     try {
@@ -362,6 +341,54 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+/// 비밀번호 재설정 이메일 입력 대화상자.
+///
+/// 컨트롤러를 대화상자 State가 소유해야 닫힘 애니메이션이 끝난 뒤 dispose된다.
+/// (showDialog 결과를 받은 직후 dispose하면 애니메이션 중 재빌드에서 오류)
+class _PasswordResetDialog extends StatefulWidget {
+  const _PasswordResetDialog({required this.initialEmail});
+
+  final String initialEmail;
+
+  @override
+  State<_PasswordResetDialog> createState() => _PasswordResetDialogState();
+}
+
+class _PasswordResetDialogState extends State<_PasswordResetDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initialEmail);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('비밀번호 재설정'),
+      content: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.emailAddress,
+        decoration: const InputDecoration(
+          labelText: '가입한 이메일',
+          prefixIcon: Icon(Icons.email_outlined),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('취소'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+          child: const Text('메일 보내기'),
+        ),
+      ],
     );
   }
 }
