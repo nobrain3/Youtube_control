@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <!-- 링크의 oobCode가 외부 요청(Referer)으로 새지 않도록 차단 -->
+  <meta name="referrer" content="no-referrer">
+  <title>큐비엔 · 계정 관리</title>
+  <style>
+    :root { --primary: #6C63FF; --text: #1a1a1a; --muted: #757575; --error: #d32f2f; --ok: #2e7d32; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+           font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+           background: #f5f5f5; color: var(--text); padding: 16px; }
+    .card { width: 100%; max-width: 400px; background: #fff; border-radius: 16px; padding: 28px 24px;
+            box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+    .brand { margin: 0 0 20px; font-size: 22px; font-weight: 700; color: var(--primary); }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    p { margin: 0 0 16px; color: var(--muted); line-height: 1.5; word-break: break-all; }
+    label { display: block; font-size: 14px; margin: 12px 0 6px; }
+    input { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ddd; border-radius: 10px; }
+    input:focus { outline: 2px solid var(--primary); border-color: transparent; }
+    button { width: 100%; margin-top: 20px; padding: 14px; font-size: 16px; font-weight: 600; color: #fff;
+             background: var(--primary); border: 0; border-radius: 10px; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: default; }
+    .msg { margin-top: 12px; font-size: 14px; }
+    .msg.error { color: var(--error); }
+    .status-ok h1 { color: var(--ok); }
+    .status-error h1 { color: var(--error); }
+  </style>
+</head>
+<body>
+  <main class="card" id="app" aria-live="polite">
+    <div class="brand">큐비엔</div>
+    <h1>확인하는 중…</h1>
+    <p>잠시만 기다려주세요.</p>
+  </main>
+  <script type="module" src="/auth/action.js"></script>
+</body>
+</html>
