@@ -138,6 +138,7 @@ OPENAI_API_KEY=your_openai_api_key_here  # 미설정 시 내장 문제은행으�
 - [ ] 하단 네비게이션 구조 차별화 (#83)
 - [ ] AppBar 액션 버튼 및 영상 카드 레이아웃 차별화 (#84)
 - [ ] YouTube API 사용 고지 및 비공식 앱 면책 문구 추가 (#85)
+- [ ] Google 로그인 YouTube 권한 분리 요청 + OAuth 앱 심사 준비 (#103)
 
 ### 2. 단기 개선
 - [ ] 홈 화면 Shorts 필터링 개선 (#77)
