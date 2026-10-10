@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../firestore/account_sync_service.dart';
 import 'google_auth_service.dart';
 
@@ -90,7 +92,7 @@ class AuthService {
       final account = await GoogleAuthService().signIn();
       if (account == null) return null;
 
-      final tokens = await account.authentication;
+      final tokens = await _authenticationWithRetry(account);
       if (tokens.idToken == null) {
         throw const AuthFailure(
           'Google 인증 정보를 받지 못했습니다. 잠시 후 다시 시도해주세요.',
@@ -106,6 +108,20 @@ class AuthService {
       return user;
     } on FirebaseAuthException catch (e) {
       throw AuthFailure(_messageFor(e));
+    }
+  }
+
+  /// 첫 YouTube 권한 동의 직후에는 google_sign_in v6의 토큰 재요청이
+  /// PlatformException으로 실패하는 경우가 있다 (NEED_REMOTE_CONSENT 처리 후).
+  /// 동의는 이미 저장돼 있어 한 번 더 요청하면 성공한다.
+  Future<GoogleSignInAuthentication> _authenticationWithRetry(
+    GoogleSignInAccount account,
+  ) async {
+    try {
+      return await account.authentication;
+    } on PlatformException catch (e) {
+      debugPrint('Google 토큰 요청 실패, 1회 재시도: ${e.code} ${e.message}');
+      return account.authentication;
     }
   }
 
