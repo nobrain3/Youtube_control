@@ -1,0 +1,162 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model (#99)
+// ===============================================================
+//
+// Firebase Auth 사용자는 모두 보호자(guardian) 계정이다 (이메일/비밀번호 또는 Google).
+// 아이는 Auth 계정이 없고 보호자 문서 아래 하위 문서로만 존재한다.
+// 모든 문서는 소유 보호자 본인만 읽고 쓸 수 있다. 공개 데이터는 없다.
+//
+// Collection: users
+// Document ID: {uid} (Firebase Auth uid와 동일)
+// Fields:
+//   - displayName: string (required, 0~100자) - 보호자 이름 (Google 계정은 빈 값일 수 있음)
+//   - email: string (required, 로그인 토큰의 email과 일치) - PII
+//   - provider: string (required, immutable, 'password' | 'google.com' | 'unknown')
+//   - role: string (required, immutable, 'guardian' 고정) - 클라이언트가 다른 역할을 만들 수 없음
+//   - createdAt: timestamp (required, immutable, 생성 시 request.time)
+//   - updatedAt: timestamp (required, 쓰기마다 request.time)
+//
+// Collection: users/{uid}/children
+// Document ID: {childId} (자동 생성)
+// Fields:
+//   - name: string (required, 1~50자) - 아이 이름 또는 별명 (PII)
+//   - grade: int (required, 1~12) - 학년 (초1~고3)
+//   - settings: map (required, 정확히 아래 2개 키)
+//       - studyIntervalMinutes: int (1~600) - 퀴즈 출제 간격(분)
+//       - quizQuestionCount: int (1~10) - 한 번에 출제할 문제 수
+//   - createdAt: timestamp (required, immutable, 생성 시 request.time)
+//   - updatedAt: timestamp (required, 쓰기마다 request.time)
+//
+// 앱의 쿼리: users/{uid}/children 에 대해 orderBy('createdAt').limit(1)
+// 그 외 모든 경로(향후 sessions/quizAttempts/watchHistory 포함)는 기본 차단.
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function changedOnly(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isStringInRange(value, minLen, maxLen) {
+      return value is string && value.size() >= minLen && value.size() <= maxLen;
+    }
+
+    function isIntInRange(value, minVal, maxVal) {
+      return value is int && value >= minVal && value <= maxVal;
+    }
+
+    // 서버 타임스탬프(FieldValue.serverTimestamp())만 허용
+    function isServerTime(value) {
+      return value is timestamp && value == request.time;
+    }
+
+    function guardianExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    // ===============================================================
+    // Domain Validators (create와 update 모두에서 호출)
+    // ===============================================================
+
+    function isValidGuardian(data) {
+      return hasOnlyAllowedFields(['displayName', 'email', 'provider', 'role', 'createdAt', 'updatedAt']) &&
+             hasRequiredFields(['displayName', 'email', 'provider', 'role', 'createdAt', 'updatedAt']) &&
+             isStringInRange(data.displayName, 0, 100) &&
+             // 이메일은 로그인 토큰의 이메일과 같아야 한다 (다른 사람 이메일 기록 방지)
+             data.email is string && data.email == request.auth.token.email &&
+             data.provider in ['password', 'google.com', 'unknown'] &&
+             data.role == 'guardian' &&
+             data.createdAt is timestamp &&
+             isServerTime(data.updatedAt);
+    }
+
+    function isValidSettings(settings) {
+      return settings is map &&
+             settings.keys().hasOnly(['studyIntervalMinutes', 'quizQuestionCount']) &&
+             settings.keys().hasAll(['studyIntervalMinutes', 'quizQuestionCount']) &&
+             isIntInRange(settings.studyIntervalMinutes, 1, 600) &&
+             isIntInRange(settings.quizQuestionCount, 1, 10);
+    }
+
+    function isValidChild(data) {
+      return hasOnlyAllowedFields(['name', 'grade', 'settings', 'createdAt', 'updatedAt']) &&
+             hasRequiredFields(['name', 'grade', 'settings', 'createdAt', 'updatedAt']) &&
+             isStringInRange(data.name, 1, 50) &&
+             isIntInRange(data.grade, 1, 12) &&
+             isValidSettings(data.settings) &&
+             data.createdAt is timestamp &&
+             isServerTime(data.updatedAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // 보호자 프로필: 본인만 읽기/생성/수정. 역할·가입 방식·생성 시각은 변경 불가.
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidGuardian(request.resource.data) &&
+                       isServerTime(request.resource.data.createdAt);
+
+      allow update: if isOwner(userId) &&
+                       isValidGuardian(request.resource.data) &&
+                       changedOnly(['displayName', 'email', 'updatedAt']) &&
+                       areImmutableFieldsUnchanged(['role', 'provider', 'createdAt']);
+
+      // 계정 삭제는 앱에서 하지 않는다 (향후 서버 측 처리)
+      allow delete: if false;
+
+      // 아이 프로필: 소유 보호자만. 보호자 문서가 있어야 만들 수 있다.
+      match /children/{childId} {
+        allow read: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         guardianExists(userId) &&
+                         isValidChild(request.resource.data) &&
+                         isServerTime(request.resource.data.createdAt);
+
+        allow update: if isOwner(userId) &&
+                         isValidChild(request.resource.data) &&
+                         changedOnly(['name', 'grade', 'settings', 'updatedAt']) &&
+                         areImmutableFieldsUnchanged(['createdAt']);
+
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // 그 외 모든 경로는 기본 차단 (규칙이 없으면 거부되지만 명시적으로 둔다)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../config/app_config.dart';
 import '../../services/storage/local_storage_service.dart';
+import '../../services/auth/auth_service.dart';
 
 class TimerSettingsScreen extends StatefulWidget {
   const TimerSettingsScreen({super.key});
@@ -76,6 +77,8 @@ class _TimerSettingsScreenState extends State<TimerSettingsScreen> {
       _isSaving = true;
     });
     await LocalStorageService().setStudyInterval(minutes);
+    // 로그인 상태면 아이 프로필에도 반영 (#99). 실패해도 로컬 저장은 유지된다.
+    await AuthService().pushSettings();
     if (!mounted) return;
     setState(() {
       _studyInterval = minutes;

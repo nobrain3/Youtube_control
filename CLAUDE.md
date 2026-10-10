@@ -43,8 +43,10 @@ flutter doctor
 - **APIs**: YouTube Data API v3, Google OAuth, OpenAI API
 - **Player**: youtube_player_flutter (주) + youtube_explode_dart/chewie (대체)
 - **Test/CI**: flutter_test, GitHub Actions
-- **Storage**: SharedPreferences (로컬)
-- **Auth**: google_sign_in
+- **Storage**: SharedPreferences (로컬) + Cloud Firestore (보호자 로그인 시 동기화, #99)
+- **Auth**: Firebase Auth (보호자: 이메일/비밀번호, Google) + google_sign_in v6 (YouTube 스코프)
+- **Firebase**: 프로젝트 `qbeen-app` (기존 `youtube-edu-control`은 YouTube API 키 전용), 설정은 `youtube_edu_controller/firebase.json`,
+  보안 규칙 `firestore.rules`. Firebase 작업은 Firebase 플러그인 스킬(`firebase:*`) 사용
 
 ### 🌳 브랜치 상태
 - **기준 브랜치**: `main` (작업 시작 전 `git checkout main && git pull` 필수)
@@ -136,6 +138,7 @@ OPENAI_API_KEY=your_openai_api_key_here  # 미설정 시 내장 문제은행으�
 - [ ] 하단 네비게이션 구조 차별화 (#83)
 - [ ] AppBar 액션 버튼 및 영상 카드 레이아웃 차별화 (#84)
 - [ ] YouTube API 사용 고지 및 비공식 앱 면책 문구 추가 (#85)
+- [ ] Google 로그인 YouTube 권한 분리 요청 + OAuth 앱 심사 준비 (#103)
 
 ### 2. 단기 개선
 - [ ] 홈 화면 Shorts 필터링 개선 (#77)
