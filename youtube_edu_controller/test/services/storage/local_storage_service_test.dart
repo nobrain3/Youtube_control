@@ -283,5 +283,23 @@ void main() {
         expect(service.getUserGrade(), 3); // default
       });
     });
+
+    group('Granted YouTube scopes (#103)', () {
+      test('should be empty by default', () {
+        expect(service.getGrantedYouTubeScopes(), isEmpty);
+      });
+
+      test('should persist and clear granted scopes', () async {
+        const scopes = [
+          'https://www.googleapis.com/auth/youtube.readonly',
+          'https://www.googleapis.com/auth/youtube.force-ssl',
+        ];
+        await service.setGrantedYouTubeScopes(scopes);
+        expect(service.getGrantedYouTubeScopes(), scopes);
+
+        await service.clearGrantedYouTubeScopes();
+        expect(service.getGrantedYouTubeScopes(), isEmpty);
+      });
+    });
   });
 }

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
 import '../../config/app_routes.dart';
 import '../../services/auth/auth_service.dart';
+import '../../services/auth/google_auth_service.dart';
 import '../../services/storage/local_storage_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -82,7 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     }
-    final isGoogle = user.providerData.any((p) => p.providerId == 'google.com');
+    final isGoogle = AuthService().isGoogleUser;
     return Card(
       child: Column(
         children: [
@@ -98,6 +99,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: '로그아웃',
             subtitle: '이 기기에서 보호자 계정 로그아웃',
             onTap: _confirmSignOut,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// YouTube 권한을 켜거나 끈다 (#103). 켤 때는 Google 동의 화면이 뜰 수 있다.
+  Future<void> _toggleYouTubePermission(
+    YouTubePermission permission,
+    bool enable,
+  ) async {
+    final auth = GoogleAuthService();
+    try {
+      if (enable) {
+        final granted = await auth.requestPermission(permission);
+        if (!granted && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('권한을 허용하지 않았습니다')),
+          );
+        }
+      } else {
+        await auth.removePermission(permission);
+      }
+    } catch (e) {
+      debugPrint('YouTube 권한 변경 실패: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('권한 변경에 실패했습니다. 잠시 후 다시 시도해주세요')),
+        );
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// Google 로그인 보호자에게만 보이는 YouTube 연결 섹션 (#103).
+  Widget _buildYouTubeCard() {
+    final auth = GoogleAuthService();
+    return Card(
+      child: Column(
+        children: [
+          SwitchListTile(
+            secondary: const Icon(Icons.subscriptions_outlined),
+            title: const Text('구독 채널 기반 추천'),
+            subtitle: const Text('구독한 채널의 새 영상을 홈에 보여줍니다'),
+            value: auth.hasPermission(YouTubePermission.subscriptions),
+            onChanged: (value) => _toggleYouTubePermission(
+                YouTubePermission.subscriptions, value),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            secondary: const Icon(Icons.thumb_up_alt_outlined),
+            title: const Text('좋아요·싫어요 기록'),
+            subtitle: const Text('재생 화면의 평가를 YouTube 계정에 남깁니다'),
+            value: auth.hasPermission(YouTubePermission.rating),
+            onChanged: (value) =>
+                _toggleYouTubePermission(YouTubePermission.rating, value),
+          ),
+          const Divider(height: 1),
+          _SettingsTile(
+            icon: Icons.manage_accounts_outlined,
+            title: 'Google 계정 권한 관리',
+            subtitle: '허용한 권한을 Google 계정에서 완전히 해제합니다',
+            onTap: () =>
+                _openExternalLink('https://myaccount.google.com/permissions'),
           ),
         ],
       ),
@@ -126,6 +191,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const _SectionHeader(title: '보호자 계정'),
           _buildAccountCard(),
           const SizedBox(height: 16),
+          if (AuthService().isGoogleUser) ...[
+            const _SectionHeader(title: 'YouTube 연결'),
+            _buildYouTubeCard(),
+            const SizedBox(height: 16),
+          ],
           const _SectionHeader(title: '사용자 정보'),
           Card(
             child: Column(

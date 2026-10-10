@@ -224,6 +224,20 @@ class LocalStorageService {
     await prefs.remove('active_child_id');
   }
 
+  /// 보호자가 허용한 YouTube OAuth 스코프 (#103).
+  /// Google 로그인 객체를 만들 때 기본 스코프와 함께 넘겨 토큰에 포함시킨다.
+  Future<void> setGrantedYouTubeScopes(List<String> scopes) async {
+    await prefs.setStringList('granted_youtube_scopes', scopes);
+  }
+
+  List<String> getGrantedYouTubeScopes() {
+    return prefs.getStringList('granted_youtube_scopes') ?? [];
+  }
+
+  Future<void> clearGrantedYouTubeScopes() async {
+    await prefs.remove('granted_youtube_scopes');
+  }
+
   Future<void> setDifficultyLevel(int level) async {
     await prefs.setInt('difficulty_level', level);
   }

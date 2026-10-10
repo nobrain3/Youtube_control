@@ -288,7 +288,7 @@ class YouTubeService {
         throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
       }
 
-      final accessToken = await GoogleAuthService().getAccessToken();
+      final accessToken = await GoogleAuthService().getAccessToken(permission: YouTubePermission.subscriptions);
 
       // 로그인하지 않았거나 토큰이 없으면 일반 Shorts 반환
       if (accessToken == null) {
@@ -420,22 +420,26 @@ class YouTubeService {
   /// [rating]: 'like', 'dislike', 'none' (평가 취소)
   Future<void> rateVideo(String videoId, String rating) async {
     try {
-      final accessToken = await GoogleAuthService().getAccessToken();
+      final accessToken = await GoogleAuthService().getAccessToken(permission: YouTubePermission.rating);
 
       if (accessToken == null) {
         throw Exception('로그인이 필요합니다');
       }
 
-      await _dio.post(
-        'https://www.googleapis.com/youtube/v3/videos/rate',
-        queryParameters: {
-          'id': videoId,
-          'rating': rating,
-        },
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $accessToken',
+      await _withTokenRetry(
+        accessToken,
+        YouTubePermission.rating,
+        (token) => _dio.post(
+          'https://www.googleapis.com/youtube/v3/videos/rate',
+          queryParameters: {
+            'id': videoId,
+            'rating': rating,
           },
+          options: Options(
+            headers: {
+              'Authorization': 'Bearer $token',
+            },
+          ),
         ),
       );
     } catch (e) {
@@ -447,21 +451,25 @@ class YouTubeService {
   /// 반환값: 'like', 'dislike', 'none'
   Future<String> getVideoRating(String videoId) async {
     try {
-      final accessToken = await GoogleAuthService().getAccessToken();
+      final accessToken = await GoogleAuthService().getAccessToken(permission: YouTubePermission.rating);
 
       if (accessToken == null) {
         return 'none';
       }
 
-      final response = await _dio.get(
-        'https://www.googleapis.com/youtube/v3/videos/getRating',
-        queryParameters: {
-          'id': videoId,
-        },
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $accessToken',
+      final response = await _withTokenRetry(
+        accessToken,
+        YouTubePermission.rating,
+        (token) => _dio.get(
+          'https://www.googleapis.com/youtube/v3/videos/getRating',
+          queryParameters: {
+            'id': videoId,
           },
+          options: Options(
+            headers: {
+              'Authorization': 'Bearer $token',
+            },
+          ),
         ),
       );
 
@@ -488,7 +496,7 @@ class YouTubeService {
         throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
       }
 
-      final accessToken = await GoogleAuthService().getAccessToken();
+      final accessToken = await GoogleAuthService().getAccessToken(permission: YouTubePermission.subscriptions);
 
       // 로그인하지 않았거나 토큰이 없으면 인기 영상 반환
       if (accessToken == null) {
@@ -530,21 +538,43 @@ class YouTubeService {
     }
   }
 
+  /// OAuth 토큰이 필요한 요청 (#103). 기기에 캐시된 토큰이 폐기돼 401이 나면
+  /// 캐시를 지우고 새 토큰으로 한 번 다시 보낸다.
+  Future<Response<dynamic>> _withTokenRetry(
+    String accessToken,
+    YouTubePermission permission,
+    Future<Response<dynamic>> Function(String token) send,
+  ) async {
+    try {
+      return await send(accessToken);
+    } on DioException catch (e) {
+      if (e.response?.statusCode != 401) rethrow;
+      final fresh =
+          await GoogleAuthService().refreshAccessToken(permission: permission);
+      if (fresh == null || fresh == accessToken) rethrow;
+      return send(fresh);
+    }
+  }
+
   // 사용자의 구독 채널 ID 목록 가져오기
   Future<List<String>> _getUserSubscriptionChannelIds(String accessToken) async {
     try {
-      final response = await _dio.get(
-        'https://www.googleapis.com/youtube/v3/subscriptions',
-        queryParameters: {
-          'part': 'snippet',
-          'mine': 'true',
-          'maxResults': 50,
-          'key': AppConfig.youtubeApiKey,
-        },
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $accessToken',
+      final response = await _withTokenRetry(
+        accessToken,
+        YouTubePermission.subscriptions,
+        (token) => _dio.get(
+          'https://www.googleapis.com/youtube/v3/subscriptions',
+          queryParameters: {
+            'part': 'snippet',
+            'mine': 'true',
+            'maxResults': 50,
+            'key': AppConfig.youtubeApiKey,
           },
+          options: Options(
+            headers: {
+              'Authorization': 'Bearer $token',
+            },
+          ),
         ),
       );
 
