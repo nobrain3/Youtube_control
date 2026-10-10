@@ -18,8 +18,8 @@ class AuthFailure implements Exception {
 ///
 /// - 이메일/비밀번호 가입은 보호자 계정만 받는다 (아동 이메일 직접 수집 안 함, #18).
 /// - Google 로그인은 [GoogleAuthService](google_sign_in v6)로 계정과 토큰을
-///   받은 뒤 Firebase에 넘긴다. YouTube 스코프가 같은 세션에 유지되므로
-///   구독 추천·좋아요 기능이 그대로 동작한다.
+///   받은 뒤 Firebase에 넘긴다. 로그인은 기본 스코프(email, profile)로만 하고,
+///   YouTube 스코프는 구독 추천·좋아요를 쓸 때 [YouTubePermission]으로 따로 요청한다 (#103).
 /// - 로그인 성공 후 [AccountSyncService]로 보호자·아이 데이터를 동기화한다.
 ///   동기화 실패는 로그인을 막지 않는다 (로컬 설정으로 계속 사용).
 class AuthService {
@@ -33,6 +33,11 @@ class AuthService {
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
   bool get isSignedIn => _auth.currentUser != null;
+
+  /// Google 계정으로 로그인한 보호자인지. YouTube 권한(#103)은 이 경우에만 요청할 수 있다.
+  bool get isGoogleUser =>
+      _auth.currentUser?.providerData.any((p) => p.providerId == 'google.com') ??
+      false;
 
   /// 보호자 이메일 가입. 가입과 동시에 첫 아이 프로필을 만든다.
   Future<User> signUpWithEmail({

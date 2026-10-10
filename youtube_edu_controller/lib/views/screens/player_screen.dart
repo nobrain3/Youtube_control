@@ -4,6 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../services/api/youtube_service.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/auth/google_auth_service.dart';
 import '../../services/storage/local_storage_service.dart';
 import '../../services/timer/learning_timer_service.dart';
 import '../../services/ai/question_generator_service.dart';
@@ -156,7 +158,57 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
+  /// 좋아요/싫어요에 필요한 YouTube 권한을 확인하고, 없으면 안내 후 요청한다 (#103).
+  Future<bool> _ensureRatingPermission() async {
+    final auth = GoogleAuthService();
+    if (!AuthService().isGoogleUser) {
+      _showRatingMessage('Google 계정으로 로그인하면 좋아요를 남길 수 있어요');
+      return false;
+    }
+    if (auth.hasPermission(YouTubePermission.rating)) return true;
+
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('YouTube 권한 필요'),
+        content: const Text(
+          '좋아요·싫어요를 YouTube 계정에 기록하려면 권한이 필요합니다.\n'
+          '다음 Google 화면에서 허용해주세요. (보호자 확인 권장)',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('계속'),
+          ),
+        ],
+      ),
+    );
+    if (proceed != true) return false;
+
+    try {
+      final granted = await auth.requestPermission(YouTubePermission.rating);
+      if (!granted) _showRatingMessage('권한을 허용하지 않아 평가할 수 없습니다');
+      return granted;
+    } catch (e) {
+      debugPrint('YouTube 평가 권한 요청 실패: $e');
+      _showRatingMessage('권한 요청에 실패했습니다. 잠시 후 다시 시도해주세요');
+      return false;
+    }
+  }
+
+  void _showRatingMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
   Future<void> _handleLike() async {
+    if (!await _ensureRatingPermission()) return;
     setState(() {
       _isRatingLoading = true;
     });
@@ -197,6 +249,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         );
       }
     } catch (e) {
+      debugPrint('동영상 평가 실패: $e');
       setState(() {
         _isRatingLoading = false;
       });
@@ -215,6 +268,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Future<void> _handleDislike() async {
+    if (!await _ensureRatingPermission()) return;
     setState(() {
       _isRatingLoading = true;
     });
@@ -255,6 +309,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         );
       }
     } catch (e) {
+      debugPrint('동영상 평가 실패: $e');
       setState(() {
         _isRatingLoading = false;
       });
