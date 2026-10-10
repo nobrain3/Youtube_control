@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../config/app_config.dart';
 import '../auth/google_auth_service.dart';
+import '../library/child_library_service.dart';
 
 class _CacheEntry {
   final dynamic data;
@@ -288,31 +289,22 @@ class YouTubeService {
         throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
       }
 
-      final accessToken = await GoogleAuthService().getAccessToken(permission: YouTubePermission.subscriptions);
-
-      // 로그인하지 않았거나 토큰이 없으면 일반 Shorts 반환
-      if (accessToken == null) {
-        print('No access token - using general shorts');
-        return await getShorts(maxResults: maxResults);
-      }
-
-      // 1. 사용자의 구독 채널 가져오기
-      final channelIds = await _getUserSubscriptionChannelIds(accessToken);
-      print('Found ${channelIds.length} subscribed channels for Shorts');
+      // 1. 아이가 담은 채널 + 좋아요한 영상의 채널 (#104)
+      final channelIds = ChildLibraryService.shared.recommendationChannelIds();
+      print('Found ${channelIds.length} child channels for Shorts');
 
       if (channelIds.isEmpty) {
-        // 구독 채널이 없으면 일반 Shorts 반환
-        print('No subscriptions - using general shorts');
+        // 아이 채널이 없으면 일반 Shorts 반환
         return await getShorts(maxResults: maxResults);
       }
 
-      // 2. 구독 채널의 Shorts 가져오기
+      // 2. 아이 채널의 Shorts 가져오기
       final shorts = await _getShortsFromChannels(channelIds, maxResults);
       print('Retrieved ${shorts.length} personalized shorts');
 
       // 구독 채널에서 Shorts를 가져오지 못하면 일반 Shorts로 fallback
       if (shorts.isEmpty) {
-        print('No shorts from subscriptions - using general shorts');
+        print('No shorts from child channels - using general shorts');
         return await getShorts(maxResults: maxResults);
       }
 
@@ -416,74 +408,6 @@ class YouTubeService {
     return match?.group(1) ?? '';
   }
 
-  /// 동영상 좋아요/싫어요 등록
-  /// [rating]: 'like', 'dislike', 'none' (평가 취소)
-  Future<void> rateVideo(String videoId, String rating) async {
-    try {
-      final accessToken = await GoogleAuthService().getAccessToken(permission: YouTubePermission.rating);
-
-      if (accessToken == null) {
-        throw Exception('로그인이 필요합니다');
-      }
-
-      await _withTokenRetry(
-        accessToken,
-        YouTubePermission.rating,
-        (token) => _dio.post(
-          'https://www.googleapis.com/youtube/v3/videos/rate',
-          queryParameters: {
-            'id': videoId,
-            'rating': rating,
-          },
-          options: Options(
-            headers: {
-              'Authorization': 'Bearer $token',
-            },
-          ),
-        ),
-      );
-    } catch (e) {
-      throw Exception('Failed to rate video: $e');
-    }
-  }
-
-  /// 현재 사용자의 동영상 평가 상태 조회
-  /// 반환값: 'like', 'dislike', 'none'
-  Future<String> getVideoRating(String videoId) async {
-    try {
-      final accessToken = await GoogleAuthService().getAccessToken(permission: YouTubePermission.rating);
-
-      if (accessToken == null) {
-        return 'none';
-      }
-
-      final response = await _withTokenRetry(
-        accessToken,
-        YouTubePermission.rating,
-        (token) => _dio.get(
-          'https://www.googleapis.com/youtube/v3/videos/getRating',
-          queryParameters: {
-            'id': videoId,
-          },
-          options: Options(
-            headers: {
-              'Authorization': 'Bearer $token',
-            },
-          ),
-        ),
-      );
-
-      final List<dynamic> items = response.data['items'] ?? [];
-      if (items.isEmpty) {
-        return 'none';
-      }
-
-      return items.first['rating'] ?? 'none';
-    } catch (e) {
-      return 'none';
-    }
-  }
-
   // 개인화된 추천 영상 가져오기
   Future<YouTubeSearchResult> getPersonalizedRecommendations({
     int maxResults = 20,
@@ -496,31 +420,22 @@ class YouTubeService {
         throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
       }
 
-      final accessToken = await GoogleAuthService().getAccessToken(permission: YouTubePermission.subscriptions);
-
-      // 로그인하지 않았거나 토큰이 없으면 인기 영상 반환
-      if (accessToken == null) {
-        print('No access token - using popular videos');
-        return await getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
-      }
-
-      // 1. 사용자의 구독 채널 가져오기
-      final channelIds = await _getUserSubscriptionChannelIds(accessToken);
-      print('Found ${channelIds.length} subscribed channels');
+      // 1. 아이가 담은 채널 + 좋아요한 영상의 채널 (#104)
+      final channelIds = ChildLibraryService.shared.recommendationChannelIds();
+      print('Found ${channelIds.length} child channels');
 
       if (channelIds.isEmpty) {
-        // 구독 채널이 없으면 인기 영상 반환
-        print('No subscriptions - using popular videos');
+        // 아이 채널이 없으면 인기 영상 반환
         return await getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
       }
 
-      // 2. 구독 채널의 최신 영상 가져오기
+      // 2. 아이 채널의 최신 영상 가져오기
       final videos = await _getVideosFromChannels(channelIds, maxResults, pageToken);
       print('Retrieved ${videos.videos.length} personalized videos');
 
       // 구독 채널에서 영상을 가져오지 못하면 인기 영상으로 fallback
       if (videos.videos.isEmpty) {
-        print('No videos from subscriptions - using popular videos');
+        print('No videos from child channels - using popular videos');
         return await getPopularVideos(maxResults: maxResults, pageToken: pageToken);
       }
 
@@ -556,9 +471,18 @@ class YouTubeService {
     }
   }
 
-  // 사용자의 구독 채널 ID 목록 가져오기
-  Future<List<String>> _getUserSubscriptionChannelIds(String accessToken) async {
-    try {
+  /// 보호자 YouTube 구독 채널 목록 (#104). 보호자가 골라서 아이 채널로 가져올 때만 쓴다.
+  /// [YouTubePermission.subscriptions] 권한이 없으면 예외.
+  Future<List<YouTubeChannelInfo>> getGuardianSubscriptions({int maxPages = 4}) async {
+    final accessToken = await GoogleAuthService()
+        .getAccessToken(permission: YouTubePermission.subscriptions);
+    if (accessToken == null) {
+      throw Exception('YouTube 구독 목록 권한이 없습니다');
+    }
+
+    final result = <YouTubeChannelInfo>[];
+    String? pageToken;
+    for (var page = 0; page < maxPages; page++) {
       final response = await _withTokenRetry(
         accessToken,
         YouTubePermission.subscriptions,
@@ -568,7 +492,8 @@ class YouTubeService {
             'part': 'snippet',
             'mine': 'true',
             'maxResults': 50,
-            'key': AppConfig.youtubeApiKey,
+            'order': 'alphabetical',
+            if (pageToken != null) 'pageToken': pageToken,
           },
           options: Options(
             headers: {
@@ -577,14 +502,48 @@ class YouTubeService {
           ),
         ),
       );
-
       final List<dynamic> items = response.data['items'] ?? [];
-      return items
-          .map((item) => item['snippet']['resourceId']['channelId'] as String)
-          .toList();
-    } catch (e) {
-      return [];
+      for (final item in items) {
+        final snippet = item['snippet'];
+        final channelId = snippet?['resourceId']?['channelId'] as String?;
+        if (channelId == null) continue;
+        result.add(YouTubeChannelInfo(
+          id: channelId,
+          title: snippet['title'] ?? '',
+          thumbnailUrl: snippet['thumbnails']?['default']?['url'] ?? '',
+        ));
+      }
+      pageToken = response.data['nextPageToken'] as String?;
+      if (pageToken == null) break;
     }
+    return result;
+  }
+
+  /// 채널 이름·썸네일 조회 (50개당 1 unit). 저장은 ID만 하고 표시할 때 조회한다 (#104).
+  Future<List<YouTubeChannelInfo>> getChannelsInfo(List<String> channelIds) async {
+    final result = <YouTubeChannelInfo>[];
+    for (var i = 0; i < channelIds.length; i += 50) {
+      final batch = channelIds.sublist(i, (i + 50).clamp(0, channelIds.length));
+      final response = await _dio.get(
+        'https://www.googleapis.com/youtube/v3/channels',
+        queryParameters: {
+          'part': 'snippet',
+          'id': batch.join(','),
+          'maxResults': 50,
+          'key': AppConfig.youtubeApiKey,
+        },
+      );
+      final List<dynamic> items = response.data['items'] ?? [];
+      for (final item in items) {
+        final snippet = item['snippet'];
+        result.add(YouTubeChannelInfo(
+          id: item['id'] as String,
+          title: snippet?['title'] ?? '',
+          thumbnailUrl: snippet?['thumbnails']?['default']?['url'] ?? '',
+        ));
+      }
+    }
+    return result;
   }
 
   // 특정 채널들의 최신 영상 가져오기 (최적화: playlistItems 사용)
@@ -677,6 +636,7 @@ class YouTubeService {
 class YouTubeVideo {
   final String id;
   final String title;
+  final String channelId;
   final String channelTitle;
   final String thumbnailUrl;
   final String description;
@@ -685,6 +645,7 @@ class YouTubeVideo {
   YouTubeVideo({
     required this.id,
     required this.title,
+    this.channelId = '',
     required this.channelTitle,
     required this.thumbnailUrl,
     required this.description,
@@ -696,6 +657,7 @@ class YouTubeVideo {
     return YouTubeVideo(
       id: json['id']['videoId'],
       title: snippet['title'],
+      channelId: snippet['channelId'] ?? '',
       channelTitle: snippet['channelTitle'],
       thumbnailUrl: snippet['thumbnails']['medium']['url'],
       description: snippet['description'],
@@ -708,6 +670,7 @@ class YouTubeVideo {
     return YouTubeVideo(
       id: json['id'] is String ? json['id'] : json['id'].toString(),
       title: snippet['title'],
+      channelId: snippet['channelId'] ?? '',
       channelTitle: snippet['channelTitle'],
       thumbnailUrl: snippet['thumbnails']['medium']['url'],
       description: snippet['description'],
@@ -731,6 +694,7 @@ class YouTubeVideo {
 class YouTubeVideoDetails {
   final String id;
   final String title;
+  final String channelId;
   final String channelTitle;
   final String thumbnailUrl;
   final String description;
@@ -742,6 +706,7 @@ class YouTubeVideoDetails {
   YouTubeVideoDetails({
     required this.id,
     required this.title,
+    this.channelId = '',
     required this.channelTitle,
     required this.thumbnailUrl,
     required this.description,
@@ -759,6 +724,7 @@ class YouTubeVideoDetails {
     return YouTubeVideoDetails(
       id: json['id'],
       title: snippet['title'],
+      channelId: snippet['channelId'] ?? '',
       channelTitle: snippet['channelTitle'],
       thumbnailUrl: snippet['thumbnails']['medium']['url'],
       description: snippet['description'],
@@ -790,5 +756,18 @@ class YouTubeSearchResult {
   YouTubeSearchResult({
     required this.videos,
     this.nextPageToken,
+  });
+}
+
+/// 채널 표시 정보. 화면 표시용으로만 쓰고 저장하지 않는다 (#104).
+class YouTubeChannelInfo {
+  final String id;
+  final String title;
+  final String thumbnailUrl;
+
+  const YouTubeChannelInfo({
+    required this.id,
+    required this.title,
+    required this.thumbnailUrl,
   });
 }
