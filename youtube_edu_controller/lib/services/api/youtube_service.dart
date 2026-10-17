@@ -330,13 +330,16 @@ class YouTubeService {
       final uploadsMap = await _getUploadsPlaylistIds(selectedChannels);
       if (uploadsMap.isEmpty) return [];
 
-      // 2. 각 채널의 최신 영상 조회 (채널당 1 unit)
-      final List<String> allVideoIds = [];
+      // 2. 각 채널의 최신 영상 조회 (채널당 1 unit). 채널이 적으면 채널당 더 가져오고,
+      //    같은 영상은 한 번만 넣는다 (#104)
+      final perChannel =
+          ((maxResults * 2) / selectedChannels.length).ceil().clamp(5, 50);
+      final allVideoIds = <String>{};
       for (final channelId in selectedChannels) {
         final uploadsId = uploadsMap[channelId];
         if (uploadsId == null) continue;
 
-        final items = await _getPlaylistItems(uploadsId, maxResults: 5);
+        final items = await _getPlaylistItems(uploadsId, maxResults: perChannel);
         for (final item in items) {
           final videoId = item['snippet']?['resourceId']?['videoId'] as String?;
           if (videoId != null) {
@@ -348,7 +351,7 @@ class YouTubeService {
       if (allVideoIds.isEmpty) return [];
 
       // 3. 비디오 상세 정보 조회 + duration 필터 (1 unit per 50)
-      final videoDetails = await _getVideosByIds(allVideoIds);
+      final videoDetails = await _getVideosByIds(allVideoIds.toList());
 
       final shorts = <YouTubeVideo>[];
       for (final item in videoDetails) {
@@ -453,6 +456,12 @@ class YouTubeService {
     }
   }
 
+  /// 홈 추천 피드의 채널 순서 (페이지 간 유지).
+  List<String>? _feedChannelOrder;
+
+  static bool _sameMembers(List<String> a, List<String> b) =>
+      a.length == b.length && a.toSet().containsAll(b);
+
   /// OAuth 토큰이 필요한 요청 (#103). 기기에 캐시된 토큰이 폐기돼 401이 나면
   /// 캐시를 지우고 새 토큰으로 한 번 다시 보낸다.
   Future<Response<dynamic>> _withTokenRetry(
@@ -553,24 +562,33 @@ class YouTubeService {
     String? pageToken,
   ) async {
     try {
-      // 채널 ID를 랜덤하게 섞어서 다양성 확보
-      final shuffledChannels = List<String>.from(channelIds)..shuffle();
+      // 채널 순서는 첫 페이지(새로고침)마다 섞고, 다음 페이지에서는 같은 순서를 유지해
+      // 페이지끼리 같은 채널이 겹치지 않게 한다
+      final distinctChannels = channelIds.toSet().toList();
+      if (pageToken == null ||
+          _feedChannelOrder == null ||
+          !_sameMembers(_feedChannelOrder!, distinctChannels)) {
+        _feedChannelOrder = distinctChannels..shuffle();
+      }
+      final shuffledChannels = _feedChannelOrder!;
 
-      // 페이지네이션: pageToken에 따라 다른 채널 세트 선택
+      // 페이지네이션: pageToken에 따라 다음 채널 묶음 선택 (중복 없이, 순환하지 않음)
       final int offset = pageToken != null ? int.tryParse(pageToken) ?? 0 : 0;
       final int channelsPerPage = 5;
       final startIndex = offset * channelsPerPage;
-
-      // 채널이 부족하면 처음부터 다시 시작 (순환)
       final availableChannels = shuffledChannels.length;
-      final selectedChannels = <String>[];
-
-      for (int i = 0; i < channelsPerPage && selectedChannels.length < channelsPerPage; i++) {
-        final index = (startIndex + i) % availableChannels;
-        if (index < availableChannels) {
-          selectedChannels.add(shuffledChannels[index]);
-        }
+      if (startIndex >= availableChannels) {
+        return YouTubeSearchResult(videos: [], nextPageToken: null);
       }
+      final selectedChannels = shuffledChannels.sublist(
+        startIndex,
+        (startIndex + channelsPerPage).clamp(0, availableChannels),
+      );
+
+      // 채널이 적으면 채널당 영상을 더 가져와 피드를 채운다
+      // (Shorts가 섞여 있어 걸러지므로 목표의 2배를 요청)
+      final perChannel =
+          ((maxResults * 2) / selectedChannels.length).ceil().clamp(5, 50);
 
       // 1. uploads 플레이리스트 ID 조회 (1 unit)
       final uploadsMap = await _getUploadsPlaylistIds(selectedChannels);
@@ -578,13 +596,13 @@ class YouTubeService {
         return YouTubeSearchResult(videos: [], nextPageToken: null);
       }
 
-      // 2. 각 채널의 최신 영상 조회 (채널당 1 unit)
-      final List<String> allVideoIds = [];
+      // 2. 각 채널의 최신 영상 조회 (채널당 1 unit). 같은 영상은 한 번만.
+      final allVideoIds = <String>{};
       for (final channelId in selectedChannels) {
         final uploadsId = uploadsMap[channelId];
         if (uploadsId == null) continue;
 
-        final items = await _getPlaylistItems(uploadsId, maxResults: 5);
+        final items = await _getPlaylistItems(uploadsId, maxResults: perChannel);
         for (final item in items) {
           final videoId = item['snippet']?['resourceId']?['videoId'] as String?;
           if (videoId != null) {
@@ -598,7 +616,7 @@ class YouTubeService {
       }
 
       // 3. 비디오 상세 정보 조회 + duration 필터 (1 unit per 50)
-      final videoDetails = await _getVideosByIds(allVideoIds);
+      final videoDetails = await _getVideosByIds(allVideoIds.toList());
 
       List<YouTubeVideo> allVideos = [];
       for (final item in videoDetails) {
