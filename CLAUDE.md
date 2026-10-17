@@ -41,7 +41,7 @@ flutter doctor
 - **State Management**: Riverpod
 - **UI**: flutter_screenutil, go_router
 - **APIs**: YouTube Data API v3, Google OAuth, OpenAI API
-- **Player**: youtube_player_flutter (주) + youtube_explode_dart/chewie (대체)
+- **Player**: youtube_player_flutter (공식 임베드만. 스트림 추출 대체 플레이어는 #107에서 제거)
 - **Test/CI**: flutter_test, GitHub Actions
 - **Storage**: SharedPreferences (로컬) + Cloud Firestore (보호자 로그인 시 동기화, #99)
 - **Auth**: Firebase Auth (보호자: 이메일/비밀번호, Google) + google_sign_in v6 (YouTube 스코프)
