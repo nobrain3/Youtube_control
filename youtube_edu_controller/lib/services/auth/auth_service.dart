@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../firestore/account_sync_service.dart';
+import '../library/child_library_service.dart';
+import '../storage/local_storage_service.dart';
 import 'google_auth_service.dart';
 
 /// 화면에 그대로 보여줄 수 있는 인증 오류.
@@ -163,6 +165,16 @@ class AuthService {
       );
     } catch (e) {
       debugPrint('로그인 후 동기화 실패 (로컬 설정으로 계속 사용): $e');
+    }
+
+    // 아이 좋아요·담은 채널 병합 (#104). 실패해도 로컬 값으로 계속 쓴다.
+    final childId = LocalStorageService().getActiveChildId();
+    if (childId == null) return;
+    try {
+      await ChildLibraryService.shared
+          .syncOnSignIn(uid: user.uid, childId: childId);
+    } catch (e) {
+      debugPrint('아이 라이브러리 동기화 실패: $e');
     }
   }
 

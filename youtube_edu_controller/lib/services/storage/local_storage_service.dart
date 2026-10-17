@@ -224,6 +224,33 @@ class LocalStorageService {
     await prefs.remove('active_child_id');
   }
 
+  /// 아이의 좋아요·싫어요 (#104). [RatedVideo] JSON 목록.
+  Future<void> setChildRatings(List<Map<String, dynamic>> ratings) async {
+    await prefs.setString('child_ratings', jsonEncode(ratings));
+  }
+
+  List<Map<String, dynamic>> getChildRatings() => _decodeList('child_ratings');
+
+  /// 아이가 담은 채널 (#104). [SavedChannel] JSON 목록.
+  Future<void> setChildChannels(List<Map<String, dynamic>> channels) async {
+    await prefs.setString('child_channels', jsonEncode(channels));
+  }
+
+  List<Map<String, dynamic>> getChildChannels() =>
+      _decodeList('child_channels');
+
+  List<Map<String, dynamic>> _decodeList(String key) {
+    final raw = prefs.getString(key);
+    if (raw == null) return [];
+    try {
+      return (jsonDecode(raw) as List)
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   /// 보호자가 허용한 YouTube OAuth 스코프 (#103).
   /// Google 로그인 객체를 만들 때 기본 스코프와 함께 넘겨 토큰에 포함시킨다.
   Future<void> setGrantedYouTubeScopes(List<String> scopes) async {

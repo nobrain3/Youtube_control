@@ -10,11 +10,8 @@ import '../storage/local_storage_service.dart';
 /// 앱 심사 전까지 "Google hasn't verified this app" 경고가 뜬다.
 /// 로그인은 기본 스코프로만 하고, 아래 권한은 기능을 쓸 때 요청한다.
 enum YouTubePermission {
-  /// 구독 채널 기반 추천 (구독 목록 읽기)
-  subscriptions('https://www.googleapis.com/auth/youtube.readonly'),
-
-  /// 좋아요/싫어요 등록·조회 (videos.rate / videos.getRating)
-  rating('https://www.googleapis.com/auth/youtube.force-ssl');
+  /// 보호자 구독 목록 읽기 — 아이 채널로 골라 넣을 때만 쓴다 (#104)
+  subscriptions('https://www.googleapis.com/auth/youtube.readonly');
 
   const YouTubePermission(this.scope);
 
@@ -80,7 +77,12 @@ class GoogleAuthService {
   }
 
   Future<void> initialize() async {
-    _grantedScopes = LocalStorageService().getGrantedYouTubeScopes().toSet();
+    // 더 이상 쓰지 않는 스코프(#104에서 제거한 youtube.force-ssl 등)는 요청하지 않는다
+    final known = {for (final p in YouTubePermission.values) p.scope};
+    _grantedScopes = LocalStorageService()
+        .getGrantedYouTubeScopes()
+        .where(known.contains)
+        .toSet();
     // Try to sign in silently on app start
     await _signInSilentlyOrResetScopes();
   }
