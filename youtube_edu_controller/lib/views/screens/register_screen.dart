@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../config/app_routes.dart';
 import '../../config/app_config.dart';
 import '../../services/auth/auth_service.dart';
+import '../widgets/legal_links.dart';
 
 /// 보호자 회원가입 (#99).
 ///
@@ -26,6 +27,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   int? _selectedGrade;
 
+  // 필수 동의 (#103). 아이 정보는 법정대리인인 보호자가 입력하므로 별도 동의를 받는다.
+  bool _agreeTerms = false;
+  bool _agreePrivacy = false;
+  bool _agreeChildInfo = false;
+  bool get _agreedAll => _agreeTerms && _agreePrivacy && _agreeChildInfo;
+
   bool _isPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
@@ -45,6 +52,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_selectedGrade == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('아이의 학년을 선택해주세요')),
+      );
+      return;
+    }
+    if (!_agreedAll) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('필수 약관에 모두 동의해주세요')),
       );
       return;
     }
@@ -265,6 +278,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 SizedBox(height: 32.h),
 
+                _sectionTitle('약관 동의'),
+                _ConsentTile(
+                  value: _agreedAll,
+                  title: '모두 동의합니다',
+                  bold: true,
+                  onChanged: (value) => setState(() {
+                    _agreeTerms = value;
+                    _agreePrivacy = value;
+                    _agreeChildInfo = value;
+                  }),
+                ),
+                const Divider(height: 1),
+                _ConsentTile(
+                  value: _agreeTerms,
+                  title: '[필수] 이용약관 동의',
+                  onChanged: (value) => setState(() => _agreeTerms = value),
+                  onView: () => openLegalPage(context, AppConfig.termsUrl),
+                ),
+                _ConsentTile(
+                  value: _agreePrivacy,
+                  title: '[필수] 개인정보 수집·이용 동의',
+                  onChanged: (value) => setState(() => _agreePrivacy = value),
+                  onView: () =>
+                      openLegalPage(context, AppConfig.privacyPolicyUrl),
+                ),
+                _ConsentTile(
+                  value: _agreeChildInfo,
+                  title: '[필수] 보호자(법정대리인)로서 아이의 이름·학년 입력에 동의',
+                  onChanged: (value) =>
+                      setState(() => _agreeChildInfo = value),
+                ),
+                SizedBox(height: 24.h),
+
                 SizedBox(
                   width: double.infinity,
                   height: 56.h,
@@ -313,6 +359,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 약관 동의 체크 항목.
+class _ConsentTile extends StatelessWidget {
+  const _ConsentTile({
+    required this.value,
+    required this.title,
+    required this.onChanged,
+    this.onView,
+    this.bold = false,
+  });
+
+  final bool value;
+  final String title;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback? onView;
+  final bool bold;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      child: Row(
+        children: [
+          Checkbox(
+            value: value,
+            onChanged: (checked) => onChanged(checked ?? false),
+          ),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 14.sp,
+                fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
+              ),
+            ),
+          ),
+          if (onView != null)
+            TextButton(
+              onPressed: onView,
+              child: Text('보기', style: TextStyle(fontSize: 13.sp)),
+            ),
+        ],
       ),
     );
   }

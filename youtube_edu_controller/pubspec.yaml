@@ -44,13 +44,9 @@ dependencies:
   dio: ^5.4.0
   http: ^1.1.2
 
-  # YouTube Player
+  # YouTube Player (공식 임베드 플레이어만 사용. 스트림 직접 추출 패키지는
+  # YouTube API 약관 위반 소지가 있어 제거함, #107)
   youtube_player_flutter: ^9.0.1
-  youtube_explode_dart: ^2.5.2
-
-  # Video Player (alternative)
-  video_player: ^2.8.1
-  chewie: ^1.7.5
 
   # Local Storage
   shared_preferences: ^2.2.2

@@ -216,6 +216,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Divider(height: 1),
                 _SettingsTile(
+                  icon: Icons.shield_outlined,
+                  title: '개인정보처리방침',
+                  subtitle: '큐비엔이 수집·이용하는 정보',
+                  onTap: () => _openExternalLink(AppConfig.privacyPolicyUrl),
+                ),
+                const Divider(height: 1),
+                _SettingsTile(
+                  icon: Icons.article_outlined,
+                  title: '이용약관',
+                  subtitle: '큐비엔 서비스 이용약관',
+                  onTap: () => _openExternalLink(AppConfig.termsUrl),
+                ),
+                const Divider(height: 1),
+                _SettingsTile(
                   icon: Icons.description_outlined,
                   title: 'YouTube 서비스 약관',
                   subtitle: 'YouTube API Services를 사용합니다',

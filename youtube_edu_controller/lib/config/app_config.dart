@@ -4,6 +4,11 @@ class AppConfig {
   static const String appName = '큐비엔';
   static const String appVersion = '1.0.0';
 
+  // 웹사이트 (#103). 도메인을 구매하면 이 값과 Google 인증 플랫폼의 승인된 도메인을 함께 바꾼다.
+  static const String websiteUrl = 'https://qbeen-app.web.app';
+  static const String privacyPolicyUrl = '$websiteUrl/privacy';
+  static const String termsUrl = '$websiteUrl/terms';
+
   // API Configuration
   static const String baseUrl = 'https://api.youtubedu.com';
   static String get youtubeApiKey => dotenv.env['YOUTUBE_API_KEY'] ?? '';
