@@ -114,7 +114,7 @@ OPENAI_API_KEY=your_openai_api_key_here  # 미설정 시 내장 문제은행으�
 
 ### ⚠️ 현재 주의사항
 1. **Flutter Hot Reload 제한**: 환경변수 변경 시 앱 재시작 필요
-2. **API 할당량**: YouTube API 일일 10,000회 제한
+2. **API 할당량**: YouTube API 일일 10,000 units — 사용자별이 아니라 프로젝트 전체 한도 (#107, #108)
 3. **토큰 갱신**: Google 토큰 자동 갱신 로직 필요
 
 ## 🔄 워크플로우 규칙
@@ -139,6 +139,7 @@ OPENAI_API_KEY=your_openai_api_key_here  # 미설정 시 내장 문제은행으�
 - [ ] AppBar 액션 버튼 및 영상 카드 레이아웃 차별화 (#84)
 - [ ] YouTube API 사용 고지 및 비공식 앱 면책 문구 추가 (#85)
 - [ ] Google 로그인 YouTube 권한 분리 요청 + OAuth 앱 심사 준비 (#103)
+- [ ] YouTube API 할당량 증설 신청 (#107) + 공용 결과 서버 캐시 (#108)
 
 ### 2. 단기 개선
 - [ ] 홈 화면 Shorts 필터링 개선 (#77)
