@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../config/app_config.dart';
 import '../auth/google_auth_service.dart';
+import '../../utils/app_logger.dart';
 
 class _CacheEntry {
   final dynamic data;
@@ -25,7 +26,7 @@ class YouTubeService {
   T? _getFromCache<T>(String key) {
     final entry = _cache[key];
     if (entry != null && !entry.isExpired) {
-      print('DEBUG: 캐시 히트 - $key');
+      logDebug('DEBUG: 캐시 히트 - $key');
       return entry.data as T;
     }
     if (entry != null && entry.isExpired) {
@@ -68,11 +69,11 @@ class YouTubeService {
         }
       }
 
-      print('DEBUG: channels.list 호출 - ${channelIds.length}개 채널 → ${result.length}개 uploads ID (1 unit)');
+      logDebug('DEBUG: channels.list 호출 - ${channelIds.length}개 채널 → ${result.length}개 uploads ID (1 unit)');
       _setCache(cacheKey, result, const Duration(minutes: 10));
       return result;
     } catch (e) {
-      print('Error in _getUploadsPlaylistIds: $e');
+      logDebug('Error in _getUploadsPlaylistIds: $e');
       return {};
     }
   }
@@ -92,7 +93,7 @@ class YouTubeService {
 
       return List<Map<String, dynamic>>.from(response.data['items'] ?? []);
     } catch (e) {
-      print('Error in _getPlaylistItems for $playlistId: $e');
+      logDebug('Error in _getPlaylistItems for $playlistId: $e');
       return [];
     }
   }
@@ -116,7 +117,7 @@ class YouTubeService {
         );
         allItems.addAll(List<Map<String, dynamic>>.from(response.data['items'] ?? []));
       } catch (e) {
-        print('Error in _getVideosByIds batch: $e');
+        logDebug('Error in _getVideosByIds batch: $e');
       }
     }
     return allItems;
@@ -142,8 +143,8 @@ class YouTubeService {
       final List<dynamic> items = response.data['items'] ?? [];
       return items.map((item) => YouTubeVideo.fromJson(item)).toList();
     } catch (e) {
-      print('Error in searchVideos: $e');
-      throw Exception('동영상 검색에 실패했습니다: ${e.toString()}');
+      logDebug('Error in searchVideos: $e');
+      throw Exception('동영상 검색에 실패했습니다: ${redactSecrets(e.toString())}');
     }
   }
 
@@ -156,11 +157,9 @@ class YouTubeService {
     try {
       // API 키 검증
       if (AppConfig.youtubeApiKey.isEmpty) {
-        print('DEBUG: YouTube API 키가 비어있습니다');
+        logDebug('DEBUG: YouTube API 키가 비어있습니다');
         throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
       }
-
-      print('DEBUG: API 키 확인됨 (마지막 4자리: ${AppConfig.youtubeApiKey.substring(AppConfig.youtubeApiKey.length - 4)})');
 
       final queryParams = {
         'part': 'snippet,contentDetails',
@@ -173,9 +172,6 @@ class YouTubeService {
       if (pageToken != null) {
         queryParams['pageToken'] = pageToken;
       }
-
-      print('DEBUG: API 요청 시작 - URL: https://www.googleapis.com/youtube/v3/videos');
-      print('DEBUG: 요청 파라미터: $queryParams');
 
       final response = await _dio.get(
         'https://www.googleapis.com/youtube/v3/videos',
@@ -203,13 +199,13 @@ class YouTubeService {
         nextPageToken: nextPageToken,
       );
     } catch (e) {
-      print('Error in getPopularVideos: $e');
+      logDebug('Error in getPopularVideos: $e');
       if (e is DioException) {
-        print('DEBUG: DioException 상세 정보:');
-        print('  - statusCode: ${e.response?.statusCode}');
-        print('  - statusMessage: ${e.response?.statusMessage}');
-        print('  - data: ${e.response?.data}');
-        print('  - requestOptions: ${e.requestOptions.uri}');
+        logDebug('DEBUG: DioException 상세 정보:');
+        logDebug('  - statusCode: ${e.response?.statusCode}');
+        logDebug('  - statusMessage: ${e.response?.statusMessage}');
+        logDebug('  - data: ${e.response?.data}');
+        logDebug('  - path: ${e.requestOptions.path}');
 
         // API 오류 처리
         final statusCode = e.response?.statusCode;
@@ -230,7 +226,7 @@ class YouTubeService {
           }
         }
       }
-      throw Exception('인기 영상을 불러오는데 실패했습니다: ${e.toString()}');
+      throw Exception('인기 영상을 불러오는데 실패했습니다: ${redactSecrets(e.toString())}');
     }
   }
 
@@ -270,13 +266,13 @@ class YouTubeService {
       }
 
       final result = shorts.take(maxResults).toList();
-      print('DEBUG: getShorts - videos.list로 ${items.length}개 중 ${result.length}개 Shorts 필터링 (1 unit)');
+      logDebug('DEBUG: getShorts - videos.list로 ${items.length}개 중 ${result.length}개 Shorts 필터링 (1 unit)');
 
       _setCache(cacheKey, result, const Duration(minutes: 5));
       return result;
     } catch (e) {
-      print('Error in getShorts: $e');
-      throw Exception('Shorts를 불러오는데 실패했습니다: ${e.toString()}');
+      logDebug('Error in getShorts: $e');
+      throw Exception('Shorts를 불러오는데 실패했습니다: ${redactSecrets(e.toString())}');
     }
   }
 
@@ -292,34 +288,34 @@ class YouTubeService {
 
       // 로그인하지 않았거나 토큰이 없으면 일반 Shorts 반환
       if (accessToken == null) {
-        print('No access token - using general shorts');
+        logDebug('No access token - using general shorts');
         return await getShorts(maxResults: maxResults);
       }
 
       // 1. 사용자의 구독 채널 가져오기
       final channelIds = await _getUserSubscriptionChannelIds(accessToken);
-      print('Found ${channelIds.length} subscribed channels for Shorts');
+      logDebug('Found ${channelIds.length} subscribed channels for Shorts');
 
       if (channelIds.isEmpty) {
         // 구독 채널이 없으면 일반 Shorts 반환
-        print('No subscriptions - using general shorts');
+        logDebug('No subscriptions - using general shorts');
         return await getShorts(maxResults: maxResults);
       }
 
       // 2. 구독 채널의 Shorts 가져오기
       final shorts = await _getShortsFromChannels(channelIds, maxResults);
-      print('Retrieved ${shorts.length} personalized shorts');
+      logDebug('Retrieved ${shorts.length} personalized shorts');
 
       // 구독 채널에서 Shorts를 가져오지 못하면 일반 Shorts로 fallback
       if (shorts.isEmpty) {
-        print('No shorts from subscriptions - using general shorts');
+        logDebug('No shorts from subscriptions - using general shorts');
         return await getShorts(maxResults: maxResults);
       }
 
       return shorts;
     } catch (e) {
       // 오류 발생 시 일반 Shorts로 폴백
-      print('Error in personalized shorts: $e');
+      logDebug('Error in personalized shorts: $e');
       return getShorts(maxResults: maxResults);
     }
   }
@@ -368,7 +364,7 @@ class YouTubeService {
         }
       }
 
-      print('DEBUG: _getShortsFromChannels - ${allVideoIds.length}개 중 ${shorts.length}개 Shorts 필터링 (~${selectedChannels.length + 2} units)');
+      logDebug('DEBUG: _getShortsFromChannels - ${allVideoIds.length}개 중 ${shorts.length}개 Shorts 필터링 (~${selectedChannels.length + 2} units)');
 
       // 날짜순으로 정렬 (최신순)
       shorts.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
@@ -376,8 +372,8 @@ class YouTubeService {
       // maxResults 개수만큼 잘라내기
       return shorts.take(maxResults).toList();
     } catch (e) {
-      print('Error in _getShortsFromChannels: $e');
-      throw Exception('Failed to get shorts from channels: $e');
+      logDebug('Error in _getShortsFromChannels: $e');
+      throw Exception('Failed to get shorts from channels: ${redactSecrets('$e')}');
     }
   }
 
@@ -404,8 +400,8 @@ class YouTubeService {
 
       return YouTubeVideoDetails.fromJson(items.first);
     } catch (e) {
-      print('Error in getVideoDetails: $e');
-      throw Exception('동영상 정보를 불러오는데 실패했습니다: ${e.toString()}');
+      logDebug('Error in getVideoDetails: $e');
+      throw Exception('동영상 정보를 불러오는데 실패했습니다: ${redactSecrets(e.toString())}');
     }
   }
 
@@ -443,7 +439,7 @@ class YouTubeService {
         ),
       );
     } catch (e) {
-      throw Exception('Failed to rate video: $e');
+      throw Exception('Failed to rate video: ${redactSecrets('$e')}');
     }
   }
 
@@ -500,38 +496,38 @@ class YouTubeService {
 
       // 로그인하지 않았거나 토큰이 없으면 인기 영상 반환
       if (accessToken == null) {
-        print('No access token - using popular videos');
+        logDebug('No access token - using popular videos');
         return await getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
       }
 
       // 1. 사용자의 구독 채널 가져오기
       final channelIds = await _getUserSubscriptionChannelIds(accessToken);
-      print('Found ${channelIds.length} subscribed channels');
+      logDebug('Found ${channelIds.length} subscribed channels');
 
       if (channelIds.isEmpty) {
         // 구독 채널이 없으면 인기 영상 반환
-        print('No subscriptions - using popular videos');
+        logDebug('No subscriptions - using popular videos');
         return await getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
       }
 
       // 2. 구독 채널의 최신 영상 가져오기
       final videos = await _getVideosFromChannels(channelIds, maxResults, pageToken);
-      print('Retrieved ${videos.videos.length} personalized videos');
+      logDebug('Retrieved ${videos.videos.length} personalized videos');
 
       // 구독 채널에서 영상을 가져오지 못하면 인기 영상으로 fallback
       if (videos.videos.isEmpty) {
-        print('No videos from subscriptions - using popular videos');
+        logDebug('No videos from subscriptions - using popular videos');
         return await getPopularVideos(maxResults: maxResults, pageToken: pageToken);
       }
 
       return videos;
     } catch (e) {
       // 오류 발생 시 인기 영상으로 폴백
-      print('Error in personalized recommendations: $e');
+      logDebug('Error in personalized recommendations: $e');
       try {
         return await getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
       } catch (fallbackError) {
-        print('Fallback to popular videos also failed: $fallbackError');
+        logDebug('Fallback to popular videos also failed: $fallbackError');
         // 모든 방법이 실패하면 빈 결과 반환 (에러를 throw하지 않음)
         return YouTubeSearchResult(videos: [], nextPageToken: null);
       }
@@ -651,7 +647,7 @@ class YouTubeService {
         }
       }
 
-      print('DEBUG: _getVideosFromChannels - ${allVideoIds.length}개 중 ${allVideos.length}개 일반 영상 필터링 (~${selectedChannels.length + 2} units)');
+      logDebug('DEBUG: _getVideosFromChannels - ${allVideoIds.length}개 중 ${allVideos.length}개 일반 영상 필터링 (~${selectedChannels.length + 2} units)');
 
       // 날짜순으로 정렬 (최신순)
       allVideos.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
@@ -668,8 +664,8 @@ class YouTubeService {
         nextPageToken: nextToken,
       );
     } catch (e) {
-      print('Error in _getVideosFromChannels: $e');
-      throw Exception('Failed to get videos from channels: $e');
+      logDebug('Error in _getVideosFromChannels: $e');
+      throw Exception('Failed to get videos from channels: ${redactSecrets('$e')}');
     }
   }
 }

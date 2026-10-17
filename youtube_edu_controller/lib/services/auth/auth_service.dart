@@ -1,9 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../firestore/account_sync_service.dart';
 import 'google_auth_service.dart';
+import '../../utils/app_logger.dart';
 
 /// 화면에 그대로 보여줄 수 있는 인증 오류.
 class AuthFailure implements Exception {
@@ -125,7 +125,7 @@ class AuthService {
     try {
       return await account.authentication;
     } on PlatformException catch (e) {
-      debugPrint('Google 토큰 요청 실패, 1회 재시도: ${e.code} ${e.message}');
+      logDebug('Google 토큰 요청 실패, 1회 재시도: ${e.code} ${e.message}');
       return account.authentication;
     }
   }
@@ -135,7 +135,7 @@ class AuthService {
       await GoogleAuthService().signOut();
     } catch (e) {
       // Google로 로그인하지 않은 경우에도 Firebase 로그아웃은 진행한다.
-      debugPrint('Google 로그아웃 건너뜀: $e');
+      logDebug('Google 로그아웃 건너뜀: $e');
     }
     await _auth.signOut();
     await _sync.onSignedOut();
@@ -162,7 +162,7 @@ class AuthService {
         childGrade: childGrade,
       );
     } catch (e) {
-      debugPrint('로그인 후 동기화 실패 (로컬 설정으로 계속 사용): $e');
+      logDebug('로그인 후 동기화 실패 (로컬 설정으로 계속 사용): $e');
     }
   }
 

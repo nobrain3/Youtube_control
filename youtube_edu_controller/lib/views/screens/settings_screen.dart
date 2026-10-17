@@ -6,6 +6,7 @@ import '../../config/app_routes.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/auth/google_auth_service.dart';
 import '../../services/storage/local_storage_service.dart';
+import '../../utils/app_logger.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -123,7 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await auth.removePermission(permission);
       }
     } catch (e) {
-      debugPrint('YouTube 권한 변경 실패: $e');
+      logDebug('YouTube 권한 변경 실패: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('권한 변경에 실패했습니다. 잠시 후 다시 시도해주세요')),

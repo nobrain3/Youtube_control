@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../storage/local_storage_service.dart';
+import '../../utils/app_logger.dart';
 
 /// 기능별로 따로 요청하는 YouTube 권한 (#103).
 ///
@@ -62,7 +62,7 @@ class GoogleAuthService {
         _currentUser = await _googleSignIn!.signIn();
       }
     } catch (error) {
-      debugPrint('Google 세션 재연결 실패: $error');
+      logDebug('Google 세션 재연결 실패: $error');
       _currentUser = null;
     }
     return isSignedIn;
@@ -73,7 +73,7 @@ class GoogleAuthService {
   Future<bool> _signInSilentlyOrResetScopes() async {
     if (await _rebuildSignIn()) return true;
     if (_grantedScopes.isEmpty) return false;
-    debugPrint('기록된 YouTube 권한으로 Google 연결 실패 → 권한 기록 초기화');
+    logDebug('기록된 YouTube 권한으로 Google 연결 실패 → 권한 기록 초기화');
     _grantedScopes = {};
     await LocalStorageService().clearGrantedYouTubeScopes();
     return _rebuildSignIn();
@@ -174,7 +174,7 @@ class GoogleAuthService {
       return auth.accessToken;
     } catch (error) {
       // 토큰 가져오기 실패 시 null 반환 (fallback 로직이 동작하도록)
-      debugPrint('액세스 토큰 가져오기 실패: $error');
+      logDebug('액세스 토큰 가져오기 실패: $error');
       return null;
     }
   }
@@ -188,7 +188,7 @@ class GoogleAuthService {
       // 현재 캐시된 액세스 토큰(=거부된 토큰)을 지운다
       await account.clearAuthCache();
     } catch (error) {
-      debugPrint('토큰 캐시 삭제 실패: $error');
+      logDebug('토큰 캐시 삭제 실패: $error');
       return null;
     }
     return getAccessToken(permission: permission);

@@ -7,6 +7,7 @@ import '../../models/study_session_model.dart';
 import '../../services/ai/question_generator_service.dart';
 import '../../services/storage/local_storage_service.dart';
 import '../../config/app_config.dart';
+import '../../utils/app_logger.dart';
 
 class QuestionScreen extends StatefulWidget {
   final Map<String, dynamic> questionData;
@@ -122,7 +123,7 @@ class _QuestionScreenState extends State<QuestionScreen>
       );
     } catch (e) {
       // 세션 생성 실패해도 문제 풀이는 진행
-      print('Failed to start study session: $e');
+      logDebug('Failed to start study session: $e');
     }
   }
 
@@ -768,7 +769,7 @@ class _QuestionScreenState extends State<QuestionScreen>
         });
       }
     } catch (e) {
-      print('Failed to save study session: $e');
+      logDebug('Failed to save study session: $e');
     }
   }
 

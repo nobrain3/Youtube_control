@@ -10,6 +10,7 @@ import '../../services/storage/local_storage_service.dart';
 import '../../services/timer/learning_timer_service.dart';
 import '../../services/ai/question_generator_service.dart';
 import '../../models/question_model.dart';
+import '../../utils/app_logger.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
   final String videoId;
@@ -143,7 +144,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         'description': videoDetails.description,
       });
     } catch (e) {
-      debugPrint('Failed to save watch history: $e');
+      logDebug('Failed to save watch history: $e');
     }
   }
 
@@ -154,7 +155,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _userRating = rating;
       });
     } catch (e) {
-      debugPrint('Failed to load user rating: $e');
+      logDebug('Failed to load user rating: $e');
     }
   }
 
@@ -194,7 +195,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       if (!granted) _showRatingMessage('권한을 허용하지 않아 평가할 수 없습니다');
       return granted;
     } catch (e) {
-      debugPrint('YouTube 평가 권한 요청 실패: $e');
+      logDebug('YouTube 평가 권한 요청 실패: $e');
       _showRatingMessage('권한 요청에 실패했습니다. 잠시 후 다시 시도해주세요');
       return false;
     }
@@ -249,7 +250,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         );
       }
     } catch (e) {
-      debugPrint('동영상 평가 실패: $e');
+      logDebug('동영상 평가 실패: $e');
       setState(() {
         _isRatingLoading = false;
       });
@@ -309,7 +310,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         );
       }
     } catch (e) {
-      debugPrint('동영상 평가 실패: $e');
+      logDebug('동영상 평가 실패: $e');
       setState(() {
         _isRatingLoading = false;
       });
