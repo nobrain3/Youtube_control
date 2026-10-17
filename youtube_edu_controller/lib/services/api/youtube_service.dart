@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import '../../config/app_config.dart';
 import '../auth/google_auth_service.dart';
+import '../../models/child_library.dart';
 import '../library/child_library_service.dart';
+import '../recommendation/feed_mixer.dart';
 
 class _CacheEntry {
   final dynamic data;
@@ -411,7 +413,15 @@ class YouTubeService {
     return match?.group(1) ?? '';
   }
 
-  // 개인화된 추천 영상 가져오기
+  /// 홈 추천 피드 최대 페이지 수 (무한 스크롤 상한).
+  static const int _maxFeedPages = 5;
+
+  /// 홈 추천 영상 (#104).
+  ///
+  /// 아이 채널(담은 채널 + 좋아요한 영상의 채널)의 최신 영상을 중심으로 약 30%는
+  /// 발견용 영상(같은 분야 인기 영상, 크리에이터가 추천한 채널)을 섞는다.
+  /// 같은 채널이 연달아 나오지 않게 배치하고(#78), 아이가 싫어요한 영상은 뺀다.
+  /// 아이 채널이 없으면 인기 영상을 보여준다.
   Future<YouTubeSearchResult> getPersonalizedRecommendations({
     int maxResults = 20,
     String? pageToken,
@@ -423,8 +433,8 @@ class YouTubeService {
         throw Exception('YouTube API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
       }
 
-      // 1. 아이가 담은 채널 + 좋아요한 영상의 채널 (#104)
-      final channelIds = ChildLibraryService.shared.recommendationChannelIds();
+      final library = ChildLibraryService.shared;
+      final channelIds = library.recommendationChannelIds();
       print('Found ${channelIds.length} child channels');
 
       if (channelIds.isEmpty) {
@@ -432,28 +442,257 @@ class YouTubeService {
         return await getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
       }
 
-      // 2. 아이 채널의 최신 영상 가져오기
-      final videos = await _getVideosFromChannels(channelIds, maxResults, pageToken);
-      print('Retrieved ${videos.videos.length} personalized videos');
-
-      // 구독 채널에서 영상을 가져오지 못하면 인기 영상으로 fallback
-      if (videos.videos.isEmpty) {
-        print('No videos from child channels - using popular videos');
-        return await getPopularVideos(maxResults: maxResults, pageToken: pageToken);
+      final page = int.tryParse(pageToken ?? '') ?? 0;
+      if (page >= _maxFeedPages) {
+        return YouTubeSearchResult(videos: [], nextPageToken: null);
       }
 
-      return videos;
-    } catch (e) {
-      // 오류 발생 시 인기 영상으로 폴백
-      print('Error in personalized recommendations: $e');
+      // 1. 아이 채널의 최신 영상
+      YouTubeSearchResult childResult;
       try {
-        return await getPopularVideos(maxResults: maxResults, pageToken: pageToken, excludeShorts: excludeShorts);
+        childResult = await _getVideosFromChannels(channelIds, maxResults, pageToken);
+      } catch (e) {
+        print('Error in child channel videos: $e');
+        childResult = YouTubeSearchResult(videos: [], nextPageToken: null);
+      }
+
+      // 2. 발견용 영상 (실패해도 아이 채널 영상만으로 진행)
+      List<YouTubeVideo> discovery;
+      try {
+        discovery = await _getDiscoveryVideos(
+          childChannelIds: channelIds.toSet(),
+          seeds: childResult.videos,
+          page: page,
+        );
+      } catch (e) {
+        print('Error in discovery videos: $e');
+        discovery = [];
+      }
+
+      final disliked = {
+        for (final v in library.ratings)
+          if (v.rating == VideoRating.dislike) v.videoId,
+      };
+      final mixed = FeedMixer.mix(
+        primary: childResult.videos,
+        discovery: discovery,
+        maxResults: maxResults,
+        excludedVideoIds: disliked,
+      );
+      print('DEBUG: 홈 피드 page $page - 아이 채널 ${childResult.videos.length}개 + 발견 ${discovery.length}개 → ${mixed.length}개');
+
+      if (mixed.isEmpty && page == 0) {
+        return await getPopularVideos(maxResults: maxResults, excludeShorts: excludeShorts);
+      }
+
+      final hasMore = page + 1 < _maxFeedPages && mixed.isNotEmpty;
+      return YouTubeSearchResult(
+        videos: mixed,
+        nextPageToken: hasMore ? '${page + 1}' : null,
+      );
+    } catch (e) {
+      // 오류 발생 시 인기 영상으로 폴백 (첫 페이지만)
+      print('Error in personalized recommendations: $e');
+      if (pageToken != null) {
+        return YouTubeSearchResult(videos: [], nextPageToken: null);
+      }
+      try {
+        return await getPopularVideos(maxResults: maxResults, excludeShorts: excludeShorts);
       } catch (fallbackError) {
         print('Fallback to popular videos also failed: $fallbackError');
         // 모든 방법이 실패하면 빈 결과 반환 (에러를 throw하지 않음)
         return YouTubeSearchResult(videos: [], nextPageToken: null);
       }
     }
+  }
+
+  /// 발견용 영상 (#104). YouTube는 "비슷한 영상" API를 제공하지 않으므로
+  /// 아이가 보는 영상의 분야와 크리에이터가 추천한 채널로 근사한다.
+  Future<List<YouTubeVideo>> _getDiscoveryVideos({
+    required Set<String> childChannelIds,
+    required List<YouTubeVideo> seeds,
+    required int page,
+  }) async {
+    final result = <YouTubeVideo>[];
+
+    // 1. 같은 분야 인기 영상 (분야당 1 unit, 30분 캐시). 상위 2개 분야에서 페이지마다 4개씩.
+    //    여행(19) 등 일부 분야는 인기 차트가 없어(404) 비어 있을 수 있다.
+    final categories = await _topCategories(seeds);
+    var categoryPopularFound = false;
+    for (final categoryId in categories.take(3)) {
+      final popular = await _getCategoryPopular(categoryId);
+      if (popular.isEmpty) continue;
+      categoryPopularFound = true;
+      result.addAll(popular.skip(page * 4).take(4));
+    }
+    // 분야 인기 영상을 하나도 못 찾으면 교육(27) 분야, 그것도 없으면 전체 인기 영상으로 대신한다
+    if (!categoryPopularFound) {
+      for (final fallback in const [_educationCategoryId, '']) {
+        final popular = await _getCategoryPopular(fallback);
+        if (popular.isEmpty) continue;
+        result.addAll(popular.skip(page * 6).take(6));
+        break;
+      }
+    }
+
+    // 2. 크리에이터가 채널 페이지에 걸어둔 추천 채널 (채널당 1 unit, 6시간 캐시).
+    //    페이지마다 다른 추천 채널 2개의 최신 영상 3개씩.
+    final featured = (await _getFeaturedChannels(childChannelIds.take(3).toList()))
+        .where((id) => !childChannelIds.contains(id))
+        .toList();
+    final picked = featured.skip(page * 2).take(2).toList();
+    if (picked.isNotEmpty) {
+      result.addAll(await _getLatestLongVideos(picked, perChannel: 3));
+    }
+    return result;
+  }
+
+  /// 아이 채널 영상과 좋아요한 영상에서 많이 나온 분야(categoryId) 순.
+  Future<List<String>> _topCategories(List<YouTubeVideo> seeds) async {
+    final counts = <String, int>{};
+    void count(String categoryId) {
+      if (categoryId.isEmpty) return;
+      counts[categoryId] = (counts[categoryId] ?? 0) + 1;
+    }
+
+    for (final video in seeds) {
+      count(video.categoryId);
+    }
+
+    // 최근 좋아요한 영상 20개의 분야 (1 unit, 30분 캐시)
+    final liked = ChildLibraryService.shared.ratings
+        .where((v) => v.rating == VideoRating.like)
+        .toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    final likedIds = [for (final v in liked.take(20)) v.videoId];
+    if (likedIds.isNotEmpty) {
+      final cacheKey = 'liked_categories_${likedIds.join(',')}';
+      var likedCategories = _getFromCache<List<String>>(cacheKey);
+      if (likedCategories == null) {
+        final items = await _getVideosByIds(likedIds, part: 'snippet');
+        likedCategories = [
+          for (final item in items) item['snippet']?['categoryId'] as String? ?? '',
+        ];
+        _setCache(cacheKey, likedCategories, const Duration(minutes: 30));
+      }
+      // 아이가 직접 좋아요한 신호는 가중치 2배
+      for (final categoryId in likedCategories) {
+        count(categoryId);
+        count(categoryId);
+      }
+    }
+
+    final sorted = counts.keys.toList()
+      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+    return sorted;
+  }
+
+  /// YouTube 분야 ID: 교육
+  static const String _educationCategoryId = '27';
+
+  /// 분야별 한국 인기 영상 (Shorts 제외, 1 unit, 30분 캐시). [categoryId]가 빈 값이면 전체.
+  /// 인기 차트를 지원하지 않는 분야는 빈 목록.
+  Future<List<YouTubeVideo>> _getCategoryPopular(String categoryId) async {
+    final cacheKey = 'category_popular_$categoryId';
+    final cached = _getFromCache<List<YouTubeVideo>>(cacheKey);
+    if (cached != null) return cached;
+
+    var result = <YouTubeVideo>[];
+    try {
+      final response = await _dio.get(
+        'https://www.googleapis.com/youtube/v3/videos',
+        queryParameters: {
+          'part': 'snippet,contentDetails',
+          'chart': 'mostPopular',
+          'regionCode': 'KR',
+          if (categoryId.isNotEmpty) 'videoCategoryId': categoryId,
+          'maxResults': 30,
+          'key': AppConfig.youtubeApiKey,
+        },
+      );
+      final List<dynamic> items = response.data['items'] ?? [];
+      result = [
+        for (final item in items)
+          if (YouTubeVideoDetails._parseDuration(
+                      item['contentDetails']?['duration'] as String? ?? 'PT0S')
+                  .inSeconds >
+              60)
+            YouTubeVideo.fromVideoJson(item),
+      ];
+    } catch (e) {
+      print('DEBUG: 분야 $categoryId 인기 영상 조회 실패 (지원하지 않는 분야일 수 있음): $e');
+    }
+    _setCache(cacheKey, result, const Duration(minutes: 30));
+    return result;
+  }
+
+  /// 채널 페이지의 "추천 채널" 섹션에 있는 채널 ID (채널당 1 unit, 6시간 캐시).
+  Future<List<String>> _getFeaturedChannels(List<String> channelIds) async {
+    final result = <String>[];
+    for (final channelId in channelIds) {
+      final cacheKey = 'featured_$channelId';
+      var featured = _getFromCache<List<String>>(cacheKey);
+      if (featured == null) {
+        featured = [];
+        try {
+          final response = await _dio.get(
+            'https://www.googleapis.com/youtube/v3/channelSections',
+            queryParameters: {
+              'part': 'contentDetails',
+              'channelId': channelId,
+              'key': AppConfig.youtubeApiKey,
+            },
+          );
+          final List<dynamic> items = response.data['items'] ?? [];
+          for (final item in items) {
+            final List<dynamic> channels =
+                item['contentDetails']?['channels'] ?? [];
+            featured.addAll(channels.whereType<String>());
+          }
+        } catch (e) {
+          print('DEBUG: 추천 채널 조회 실패 ($channelId): $e');
+        }
+        _setCache(cacheKey, featured, const Duration(hours: 6));
+      }
+      for (final id in featured) {
+        if (!result.contains(id)) result.add(id);
+      }
+    }
+    return result;
+  }
+
+  /// 채널별 최신 일반 영상(Shorts 제외) [perChannel]개씩.
+  Future<List<YouTubeVideo>> _getLatestLongVideos(
+    List<String> channelIds, {
+    required int perChannel,
+  }) async {
+    final uploadsMap = await _getUploadsPlaylistIds(channelIds);
+    final videoIds = <String>{};
+    for (final channelId in channelIds) {
+      final uploadsId = uploadsMap[channelId];
+      if (uploadsId == null) continue;
+      // Shorts가 섞여 있을 수 있어 2배를 가져와 거른다
+      final items = await _getPlaylistItems(uploadsId, maxResults: perChannel * 2);
+      for (final item in items) {
+        final videoId = item['snippet']?['resourceId']?['videoId'] as String?;
+        if (videoId != null) videoIds.add(videoId);
+      }
+    }
+    if (videoIds.isEmpty) return [];
+
+    final details = await _getVideosByIds(videoIds.toList());
+    final perChannelCount = <String, int>{};
+    final result = <YouTubeVideo>[];
+    for (final item in details) {
+      final duration = item['contentDetails']?['duration'] as String? ?? 'PT0S';
+      if (YouTubeVideoDetails._parseDuration(duration).inSeconds <= 60) continue;
+      final video = YouTubeVideo.fromVideoJson(item);
+      final count = perChannelCount[video.channelId] ?? 0;
+      if (count >= perChannel) continue;
+      perChannelCount[video.channelId] = count + 1;
+      result.add(video);
+    }
+    return result;
   }
 
   /// 홈 추천 피드의 채널 순서 (페이지 간 유지).
@@ -630,11 +869,10 @@ class YouTubeService {
 
       print('DEBUG: _getVideosFromChannels - ${allVideoIds.length}개 중 ${allVideos.length}개 일반 영상 필터링 (~${selectedChannels.length + 2} units)');
 
-      // 날짜순으로 정렬 (최신순)
+      // 채널마다 최신순으로 정렬한 뒤 채널을 돌아가며 섞는다 (#78)
       allVideos.sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-
-      // maxResults 개수만큼 잘라내기
-      final resultVideos = allVideos.take(maxResults).toList();
+      final resultVideos =
+          FeedMixer.interleaveByChannel(allVideos).take(maxResults).toList();
 
       // 다음 페이지 토큰 생성 (채널이 충분히 있으면)
       final hasMoreChannels = (offset + 1) * channelsPerPage < availableChannels;
@@ -655,6 +893,9 @@ class YouTubeVideo {
   final String id;
   final String title;
   final String channelId;
+
+  /// YouTube 분야 ID (videos.list 응답에만 있음). 발견용 추천에 쓴다 (#104).
+  final String categoryId;
   final String channelTitle;
   final String thumbnailUrl;
   final String description;
@@ -664,6 +905,7 @@ class YouTubeVideo {
     required this.id,
     required this.title,
     this.channelId = '',
+    this.categoryId = '',
     required this.channelTitle,
     required this.thumbnailUrl,
     required this.description,
@@ -689,6 +931,7 @@ class YouTubeVideo {
       id: json['id'] is String ? json['id'] : json['id'].toString(),
       title: snippet['title'],
       channelId: snippet['channelId'] ?? '',
+      categoryId: snippet['categoryId'] ?? '',
       channelTitle: snippet['channelTitle'],
       thumbnailUrl: snippet['thumbnails']['medium']['url'],
       description: snippet['description'],
