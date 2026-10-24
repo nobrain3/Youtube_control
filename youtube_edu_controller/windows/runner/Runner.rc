@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.youtubedu.controller" "\0"
-            VALUE "FileDescription", "QBeeN" "\0"
+            VALUE "FileDescription", "QTime" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "QBeeN" "\0"
+            VALUE "InternalName", "QTime" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.youtubedu.controller. All rights reserved." "\0"
-            VALUE "OriginalFilename", "qbeen.exe" "\0"
-            VALUE "ProductName", "QBeeN" "\0"
+            VALUE "OriginalFilename", "qtime.exe" "\0"
+            VALUE "ProductName", "QTime" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

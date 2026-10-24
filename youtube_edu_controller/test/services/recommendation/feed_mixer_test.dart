@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qbeen/services/api/youtube_service.dart';
-import 'package:qbeen/services/recommendation/feed_mixer.dart';
+import 'package:qtime/services/api/youtube_service.dart';
+import 'package:qtime/services/recommendation/feed_mixer.dart';
 
 YouTubeVideo video(String id, String channel) => YouTubeVideo(
       id: id,

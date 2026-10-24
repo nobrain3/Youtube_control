@@ -77,7 +77,7 @@ jobs:
               {
                 "client_info": {
                   "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
-                  "android_client_info": { "package_name": "com.qbeen.app" }
+                  "android_client_info": { "package_name": "kr.qtime.app" }
                 },
                 "oauth_client": [],
                 "api_key": [{ "current_key": "CI_DUMMY_KEY" }],

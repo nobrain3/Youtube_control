@@ -124,7 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _SettingsTile(
               icon: Icons.manage_accounts_outlined,
               title: 'Google 계정 권한 관리',
-              subtitle: '큐비엔에 허용한 YouTube 권한을 해제합니다',
+              subtitle: '큐타임에 허용한 YouTube 권한을 해제합니다',
               onTap: () =>
                   _openExternalLink('https://myaccount.google.com/permissions'),
             ),
