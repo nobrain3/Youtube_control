@@ -9,13 +9,13 @@ Firebase Hosting(`qbeen-app`)으로 배포합니다.
 | `/privacy` | `privacy.html` | 개인정보처리방침 |
 | `/terms` | `terms.html` | 이용약관 |
 
-## 배포 전 바꿀 자리표시
+## 자리표시 (2026-10-24 채움)
 
 | 자리표시 | 내용 |
 |---|---|
-| `__CONTACT_EMAIL__` | 앱 전용 문의 이메일 |
-| `__OPERATOR_NAME__` | 개인정보 보호책임자 (운영자 이름) |
-| `__EFFECTIVE_DATE__` | 시행일 (공개일) |
+| `__CONTACT_EMAIL__` | qtime.help@gmail.com |
+| `__OPERATOR_NAME__` | 김진 |
+| `__EFFECTIVE_DATE__` | 2026년 10월 24일 |
 
 남은 자리표시 확인:
 
