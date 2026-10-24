@@ -1,6 +1,6 @@
 # Google OAuth 앱 심사 준비 (#103)
 
-큐비엔 Google 로그인 동의 화면을 "확인된 앱"으로 만들기 위한 제출 자료와 절차.
+큐타임 Google 로그인 동의 화면을 "확인된 앱"으로 만들기 위한 제출 자료와 절차.
 심사를 통과하면 "Google hasn't verified this app" 경고가 사라지고 사용자 100명 제한이 풀린다.
 
 - 대상 프로젝트: `qbeen-app` (Google 인증 플랫폼)
@@ -18,7 +18,7 @@
 
 ### 스코프 사용 이유 (제출용 문안, 영문)
 
-> QBeeN is an educational video app used on a child's device and managed by a parent account.
+> QTime (큐타임) is an educational video app used on a child's device and managed by a parent account.
 > We request `youtube.readonly` only when the parent explicitly taps "Import from my YouTube subscriptions"
 > in Settings. We call `subscriptions.list (mine=true)` to show the parent's subscribed channels in a
 > picker. The parent selects which channels their child may see, and we store only the selected channel
@@ -30,13 +30,13 @@
 
 | 항목 | 값 |
 |---|---|
-| 앱 이름 | 큐비엔 (상표 'YouTube' 미포함 — #81) |
+| 앱 이름 | 큐타임 (상표 'YouTube' 미포함 — #81) |
 | 사용자 지원 이메일 | 앱 전용 문의 이메일 (준비 중) |
-| 앱 로고 | 120×120 PNG, 큐비엔 로고 (YouTube 로고 사용 금지) |
-| 애플리케이션 홈페이지 | `https://<도메인>/` |
-| 개인정보처리방침 | `https://<도메인>/privacy` |
-| 서비스 약관 | `https://<도메인>/terms` |
-| 승인된 도메인 | `<도메인>` (홈페이지·방침과 같은 도메인) |
+| 앱 로고 | 120×120 PNG, 큐타임 로고 (YouTube 로고 사용 금지) |
+| 애플리케이션 홈페이지 | `https://qtime.kr/` |
+| 개인정보처리방침 | `https://qtime.kr/privacy` |
+| 서비스 약관 | `https://qtime.kr/terms` |
+| 승인된 도메인 | `qtime.kr` (홈페이지·방침과 같은 도메인) |
 | 개발자 연락처 | 앱 전용 이메일 |
 
 웹사이트 원본: `youtube_edu_controller/hosting/` (배포 방법은 그 폴더의 README).

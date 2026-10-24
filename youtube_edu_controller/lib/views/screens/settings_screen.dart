@@ -124,7 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _SettingsTile(
               icon: Icons.manage_accounts_outlined,
               title: 'Google 계정 권한 관리',
-              subtitle: '큐비엔에 허용한 YouTube 권한을 해제합니다',
+              subtitle: '큐타임에 허용한 YouTube 권한을 해제합니다',
               onTap: () =>
                   _openExternalLink('https://myaccount.google.com/permissions'),
             ),
@@ -218,14 +218,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SettingsTile(
                   icon: Icons.shield_outlined,
                   title: '개인정보처리방침',
-                  subtitle: '큐비엔이 수집·이용하는 정보',
+                  subtitle: '큐타임이 수집·이용하는 정보',
                   onTap: () => _openExternalLink(AppConfig.privacyPolicyUrl),
                 ),
                 const Divider(height: 1),
                 _SettingsTile(
                   icon: Icons.article_outlined,
                   title: '이용약관',
-                  subtitle: '큐비엔 서비스 이용약관',
+                  subtitle: '큐타임 서비스 이용약관',
                   onTap: () => _openExternalLink(AppConfig.termsUrl),
                 ),
                 const Divider(height: 1),

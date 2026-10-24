@@ -260,7 +260,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 SizedBox(height: 12.h),
                 // 처음 Google로 로그인하면 가입 화면 없이 계정이 만들어지므로 동의 안내를 둔다 (#103)
-                const LegalConsentNotice(prefix: 'Google로 처음 로그인하면 큐비엔의 '),
+                const LegalConsentNotice(prefix: 'Google로 처음 로그인하면 큐타임의 '),
                 SizedBox(height: 24.h),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

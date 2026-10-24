@@ -1,4 +1,4 @@
-# 큐비엔 웹사이트 (#103, #107)
+# 큐타임 웹사이트 (#103, #107)
 
 Google OAuth 앱 심사와 YouTube API 할당량 심사에 필요한 공개 페이지입니다.
 Firebase Hosting(`qbeen-app`)으로 배포합니다.
@@ -29,5 +29,5 @@ grep -rn "__[A-Z_]*__" hosting/
 npx -y firebase-tools@latest deploy --only hosting --project qbeen-app
 ```
 
-구매한 도메인은 Firebase 콘솔 > Hosting > 커스텀 도메인 추가로 연결하고,
+도메인 `qtime.kr`은 Firebase 콘솔 > Hosting > 커스텀 도메인 추가로 연결하고,
 앱의 `AppConfig.websiteUrl`과 Google 인증 플랫폼의 승인된 도메인을 같은 값으로 맞춥니다.

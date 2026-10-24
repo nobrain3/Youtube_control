@@ -16,7 +16,7 @@ Future<void> openLegalPage(BuildContext context, String url) async {
 
 /// "계속하면 이용약관과 개인정보처리방침에 동의하게 됩니다" 안내 (Google 로그인용).
 class LegalConsentNotice extends StatelessWidget {
-  const LegalConsentNotice({super.key, this.prefix = '계속하면 큐비엔의 '});
+  const LegalConsentNotice({super.key, this.prefix = '계속하면 큐타임의 '});
 
   final String prefix;
 
