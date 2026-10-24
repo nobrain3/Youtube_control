@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qbeen/models/question_model.dart';
+import 'package:qtime/models/question_model.dart';
 
 void main() {
   group('Question', () {

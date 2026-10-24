@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qbeen/utils/app_logger.dart';
+import 'package:qtime/utils/app_logger.dart';
 
 void main() {
   // 실제 키 형식이지만 가짜 값. 저장소 secret scanning에 걸리지 않도록 런타임에 조립한다.

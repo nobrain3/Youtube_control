@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:qbeen/config/app_config.dart';
-import 'package:qbeen/services/storage/local_storage_service.dart';
-import 'package:qbeen/models/user_model.dart';
-import 'package:qbeen/models/study_session_model.dart';
+import 'package:qtime/config/app_config.dart';
+import 'package:qtime/services/storage/local_storage_service.dart';
+import 'package:qtime/models/user_model.dart';
+import 'package:qtime/models/study_session_model.dart';
 
 void main() {
   group('LocalStorageService', () {

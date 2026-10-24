@@ -1,8 +1,8 @@
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qbeen/services/firestore/account_sync_service.dart';
-import 'package:qbeen/services/firestore/user_repository.dart';
-import 'package:qbeen/services/storage/local_storage_service.dart';
+import 'package:qtime/services/firestore/account_sync_service.dart';
+import 'package:qtime/services/firestore/user_repository.dart';
+import 'package:qtime/services/storage/local_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

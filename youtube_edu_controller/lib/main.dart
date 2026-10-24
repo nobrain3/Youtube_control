@@ -26,13 +26,13 @@ void main() async {
 
   runApp(
     ProviderScope(
-      child: const QBeeNApp(),
+      child: const QTimeApp(),
     ),
   );
 }
 
-class QBeeNApp extends StatelessWidget {
-  const QBeeNApp({super.key});
+class QTimeApp extends StatelessWidget {
+  const QTimeApp({super.key});
 
   @override
   Widget build(BuildContext context) {

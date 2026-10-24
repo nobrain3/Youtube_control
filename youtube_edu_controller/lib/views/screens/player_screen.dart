@@ -4,8 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../services/api/youtube_service.dart';
-import '../../services/auth/auth_service.dart';
-import '../../services/auth/google_auth_service.dart';
+import '../../models/child_library.dart';
+import '../../services/library/child_library_service.dart';
 import '../../services/storage/local_storage_service.dart';
 import '../../services/timer/learning_timer_service.dart';
 import '../../services/ai/question_generator_service.dart';
@@ -51,17 +51,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   /// 현재 문제 뒤에 남은 문제가 있는지.
   bool get _hasNextQuestion => _currentQuestionIndex < _questions.length - 1;
 
-  // 좋아요/싫어요 상태
-  String _userRating = 'none'; // 'like', 'dislike', 'none'
-  bool _isRatingLoading = false;
-  int? _localLikeCount; // 로컬 좋아요 수 (사용자 액션 반영)
+  // 아이의 좋아요/싫어요·채널 담기 상태 (#104). 보호자 YouTube 계정이 아니라 앱 안에 저장한다.
+  final ChildLibraryService _library = ChildLibraryService.shared;
+  VideoRating? _userRating;
+  bool _isChannelSaved = false;
 
   @override
   void initState() {
     super.initState();
     _initializePlayer();
     _loadVideoDetails();
-    _loadUserRating();
+    _userRating = _library.ratingOf(widget.videoId);
     Future(() => _loadTimerInterval());
   }
 
@@ -118,6 +118,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
       final videoDetails = await YouTubeService().getVideoDetails(widget.videoId);
       setState(() {
         _videoDetails = videoDetails;
+        _isChannelSaved = _library.isChannelSaved(videoDetails.channelId);
         _isLoading = false;
       });
 
@@ -148,184 +149,48 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  Future<void> _loadUserRating() async {
-    try {
-      final rating = await YouTubeService().getVideoRating(widget.videoId);
-      setState(() {
-        _userRating = rating;
-      });
-    } catch (e) {
-      logDebug('Failed to load user rating: $e');
-    }
-  }
-
-  /// 좋아요/싫어요에 필요한 YouTube 권한을 확인하고, 없으면 안내 후 요청한다 (#103).
-  Future<bool> _ensureRatingPermission() async {
-    final auth = GoogleAuthService();
-    if (!AuthService().isGoogleUser) {
-      _showRatingMessage('Google 계정으로 로그인하면 좋아요를 남길 수 있어요');
-      return false;
-    }
-    if (auth.hasPermission(YouTubePermission.rating)) return true;
-
-    final proceed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('YouTube 권한 필요'),
-        content: const Text(
-          '좋아요·싫어요를 YouTube 계정에 기록하려면 권한이 필요합니다.\n'
-          '다음 Google 화면에서 허용해주세요. (보호자 확인 권장)',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('계속'),
-          ),
-        ],
-      ),
+  /// 좋아요/싫어요를 누른다. 같은 버튼을 다시 누르면 취소한다.
+  Future<void> _toggleRating(VideoRating rating) async {
+    final newRating = _userRating == rating ? null : rating;
+    setState(() {
+      _userRating = newRating;
+    });
+    await _library.setRating(
+      videoId: widget.videoId,
+      rating: newRating,
+      channelId: _videoDetails?.channelId ?? '',
     );
-    if (proceed != true) return false;
-
-    try {
-      final granted = await auth.requestPermission(YouTubePermission.rating);
-      if (!granted) _showRatingMessage('권한을 허용하지 않아 평가할 수 없습니다');
-      return granted;
-    } catch (e) {
-      logDebug('YouTube 평가 권한 요청 실패: $e');
-      _showRatingMessage('권한 요청에 실패했습니다. 잠시 후 다시 시도해주세요');
-      return false;
-    }
+    if (!mounted) return;
+    final message = switch (newRating) {
+      VideoRating.like => '👍 좋아요! 비슷한 영상을 더 보여줄게요',
+      VideoRating.dislike => '👎 싫어요',
+      null => rating == VideoRating.like ? '좋아요 취소' : '싫어요 취소',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 1)),
+    );
   }
 
-  void _showRatingMessage(String message) {
+  /// 이 영상의 채널을 아이 채널 목록에 담거나 뺀다.
+  Future<void> _toggleChannel() async {
+    final channelId = _videoDetails?.channelId ?? '';
+    if (channelId.isEmpty) return;
+    final save = !_isChannelSaved;
+    setState(() {
+      _isChannelSaved = save;
+    });
+    if (save) {
+      await _library.addChannel(channelId);
+    } else {
+      await _library.removeChannel(channelId);
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      SnackBar(
+        content: Text(save ? '📺 채널을 담았어요. 홈에서 새 영상을 볼 수 있어요' : '채널을 뺐어요'),
+        duration: const Duration(seconds: 2),
+      ),
     );
-  }
-
-  Future<void> _handleLike() async {
-    if (!await _ensureRatingPermission()) return;
-    setState(() {
-      _isRatingLoading = true;
-    });
-
-    try {
-      final previousRating = _userRating;
-      final newRating = _userRating == 'like' ? 'none' : 'like';
-      await YouTubeService().rateVideo(widget.videoId, newRating);
-
-      setState(() {
-        _userRating = newRating;
-        _isRatingLoading = false;
-
-        // 로컬 좋아요 수 업데이트
-        if (_localLikeCount == null) {
-          _localLikeCount = _videoDetails?.likeCount ?? 0;
-        }
-
-        if (newRating == 'like') {
-          // 좋아요 누름
-          if (previousRating == 'dislike') {
-            _localLikeCount = _localLikeCount! + 1; // 싫어요 → 좋아요
-          } else {
-            _localLikeCount = _localLikeCount! + 1; // 미평가 → 좋아요
-          }
-        } else {
-          // 좋아요 취소
-          _localLikeCount = _localLikeCount! - 1;
-        }
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(newRating == 'like' ? '👍 좋아요!' : '좋아요 취소'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      }
-    } catch (e) {
-      logDebug('동영상 평가 실패: $e');
-      setState(() {
-        _isRatingLoading = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().contains('로그인')
-              ? '로그인이 필요합니다'
-              : '평가에 실패했습니다'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _handleDislike() async {
-    if (!await _ensureRatingPermission()) return;
-    setState(() {
-      _isRatingLoading = true;
-    });
-
-    try {
-      final previousRating = _userRating;
-      final newRating = _userRating == 'dislike' ? 'none' : 'dislike';
-      await YouTubeService().rateVideo(widget.videoId, newRating);
-
-      setState(() {
-        _userRating = newRating;
-        _isRatingLoading = false;
-
-        // 로컬 좋아요 수 업데이트 (싫어요를 누르면 좋아요가 취소될 수 있음)
-        if (_localLikeCount == null) {
-          _localLikeCount = _videoDetails?.likeCount ?? 0;
-        }
-
-        if (newRating == 'dislike') {
-          // 싫어요 누름
-          if (previousRating == 'like') {
-            _localLikeCount = _localLikeCount! - 1; // 좋아요 → 싫어요
-          }
-        } else {
-          // 싫어요 취소
-          if (previousRating == 'dislike') {
-            // 싫어요만 취소 (좋아요 수 변화 없음)
-          }
-        }
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(newRating == 'dislike' ? '👎 싫어요' : '싫어요 취소'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      }
-    } catch (e) {
-      logDebug('동영상 평가 실패: $e');
-      setState(() {
-        _isRatingLoading = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().contains('로그인')
-              ? '로그인이 필요합니다'
-              : '평가에 실패했습니다'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    }
   }
 
   @override
@@ -701,90 +566,83 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   }
 
   Widget _buildLikeDislikeButtons() {
+    final primary = Theme.of(context).colorScheme.primary;
+    final textColor = Theme.of(context).textTheme.bodyMedium?.color;
+    final isLiked = _userRating == VideoRating.like;
+    final isDisliked = _userRating == VideoRating.dislike;
+    final canSaveChannel = (_videoDetails?.channelId ?? '').isNotEmpty;
+
     return Row(
       children: [
-        // 좋아요 버튼
-        InkWell(
-          onTap: _isRatingLoading ? null : _handleLike,
-          borderRadius: BorderRadius.circular(20.r),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-            decoration: BoxDecoration(
-              color: _userRating == 'like'
-                  ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(20.r),
-              border: Border.all(
-                color: _userRating == 'like'
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).dividerColor,
-                width: 1,
+        // 좋아요 버튼 (YouTube 전체 좋아요 수 표시, 아이 평가는 앱에만 저장)
+        _RatingChip(
+          onTap: () => _toggleRating(VideoRating.like),
+          selected: isLiked,
+          color: primary,
+          child: Row(
+            children: [
+              Icon(
+                isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                size: 18.sp,
+                color: isLiked ? primary : textColor,
               ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _userRating == 'like' ? Icons.thumb_up : Icons.thumb_up_outlined,
-                  size: 18.sp,
-                  color: _userRating == 'like'
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).textTheme.bodyMedium?.color,
+              SizedBox(width: 4.w),
+              Text(
+                _videoDetails!.likeCount.toString().replaceAllMapped(
+                    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                    (Match m) => '${m[1]},'),
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  fontWeight: isLiked ? FontWeight.w600 : FontWeight.normal,
+                  color: isLiked ? primary : textColor,
                 ),
-                SizedBox(width: 4.w),
-                Text(
-                  '${(_localLikeCount ?? _videoDetails!.likeCount).toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}',
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: _userRating == 'like' ? FontWeight.w600 : FontWeight.normal,
-                    color: _userRating == 'like'
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).textTheme.bodyMedium?.color,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
 
         SizedBox(width: 8.w),
 
         // 싫어요 버튼
-        InkWell(
-          onTap: _isRatingLoading ? null : _handleDislike,
-          borderRadius: BorderRadius.circular(20.r),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-            decoration: BoxDecoration(
-              color: _userRating == 'dislike'
-                  ? Colors.red.withOpacity(0.1)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(20.r),
-              border: Border.all(
-                color: _userRating == 'dislike'
-                    ? Colors.red
-                    : Theme.of(context).dividerColor,
-                width: 1,
-              ),
-            ),
-            child: Icon(
-              _userRating == 'dislike' ? Icons.thumb_down : Icons.thumb_down_outlined,
-              size: 18.sp,
-              color: _userRating == 'dislike'
-                  ? Colors.red
-                  : Theme.of(context).textTheme.bodyMedium?.color,
-            ),
+        _RatingChip(
+          onTap: () => _toggleRating(VideoRating.dislike),
+          selected: isDisliked,
+          color: Colors.red,
+          child: Icon(
+            isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
+            size: 18.sp,
+            color: isDisliked ? Colors.red : textColor,
           ),
         ),
 
-        if (_isRatingLoading)
-          Padding(
-            padding: EdgeInsets.only(left: 8.w),
-            child: SizedBox(
-              width: 16.w,
-              height: 16.h,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-              ),
+        SizedBox(width: 8.w),
+
+        // 채널 담기 버튼
+        if (canSaveChannel)
+          _RatingChip(
+            onTap: _toggleChannel,
+            selected: _isChannelSaved,
+            color: primary,
+            child: Row(
+              children: [
+                Icon(
+                  _isChannelSaved
+                      ? Icons.playlist_add_check
+                      : Icons.playlist_add,
+                  size: 18.sp,
+                  color: _isChannelSaved ? primary : textColor,
+                ),
+                SizedBox(width: 4.w),
+                Text(
+                  _isChannelSaved ? '담은 채널' : '채널 담기',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    fontWeight:
+                        _isChannelSaved ? FontWeight.w600 : FontWeight.normal,
+                    color: _isChannelSaved ? primary : textColor,
+                  ),
+                ),
+              ],
             ),
           ),
       ],
@@ -1194,5 +1052,40 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         });
       }
     }
+  }
+}
+
+/// 좋아요·싫어요·채널 담기에 쓰는 둥근 토글 버튼.
+class _RatingChip extends StatelessWidget {
+  const _RatingChip({
+    required this.onTap,
+    required this.selected,
+    required this.color,
+    required this.child,
+  });
+
+  final VoidCallback onTap;
+  final bool selected;
+  final Color color;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20.r),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20.r),
+          border: Border.all(
+            color: selected ? color : Theme.of(context).dividerColor,
+            width: 1,
+          ),
+        ),
+        child: child,
+      ),
+    );
   }
 }

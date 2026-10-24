@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_theme.dart';
 import '../../services/api/youtube_service.dart';
+import '../../services/library/child_library_service.dart';
 import '../../services/storage/local_storage_service.dart';
 import '../../utils/app_logger.dart';
 
@@ -236,10 +237,21 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _playVideo(YouTubeVideo video) {
-    context.push(
+  Future<void> _playVideo(YouTubeVideo video) async {
+    final before = ChildLibraryService.shared.recommendationChannelIds().toSet();
+    await context.push(
       '/player/${video.id}?title=${Uri.encodeComponent(video.title)}',
     );
+    // 재생 화면에서 채널을 담거나 좋아요를 바꿔 추천 채널이 달라졌으면 다시 불러온다 (#104)
+    final after = ChildLibraryService.shared.recommendationChannelIds().toSet();
+    if (mounted && (before.length != after.length || !before.containsAll(after))) {
+      _refreshFeeds();
+    }
+  }
+
+  /// 홈 추천과 클립을 다시 불러온다 (당겨서 새로고침, #104).
+  Future<void> _refreshFeeds() async {
+    await Future.wait([_loadRecommendedVideos(), _loadShorts()]);
   }
 
   @override
@@ -258,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SizedBox(width: 4.w),
             Text(
-              '큐비엔',
+              '큐타임',
               style: TextStyle(
                 color: Colors.black,
                 fontSize: 20.sp,
@@ -331,18 +343,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeTab() {
-    return SingleChildScrollView(
-      controller: _homeScrollController,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildRecommendedVideos(),
-          if (_isLoadingMoreRecommended)
-            Padding(
-              padding: EdgeInsets.all(16.h),
-              child: const Center(child: CircularProgressIndicator()),
-            ),
-        ],
+    return RefreshIndicator(
+      onRefresh: _refreshFeeds,
+      child: SingleChildScrollView(
+        controller: _homeScrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildRecommendedVideos(),
+            if (_isLoadingMoreRecommended)
+              Padding(
+                padding: EdgeInsets.all(16.h),
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -528,19 +544,23 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return GridView.builder(
-      padding: EdgeInsets.all(8.w),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 9 / 16,
-        crossAxisSpacing: 8.w,
-        mainAxisSpacing: 8.h,
+    return RefreshIndicator(
+      onRefresh: _refreshFeeds,
+      child: GridView.builder(
+        padding: EdgeInsets.all(8.w),
+        physics: const AlwaysScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 9 / 16,
+          crossAxisSpacing: 8.w,
+          mainAxisSpacing: 8.h,
+        ),
+        itemCount: _shortsVideos.length,
+        itemBuilder: (context, index) {
+          final video = _shortsVideos[index];
+          return _buildShortsItem(video);
+        },
       ),
-      itemCount: _shortsVideos.length,
-      itemBuilder: (context, index) {
-        final video = _shortsVideos[index];
-        return _buildShortsItem(video);
-      },
     );
   }
 

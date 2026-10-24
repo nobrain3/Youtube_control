@@ -11,6 +11,7 @@ import '../views/screens/settings_screen.dart';
 import '../views/screens/grade_settings_screen.dart';
 import '../views/screens/timer_settings_screen.dart';
 import '../views/screens/quiz_count_settings_screen.dart';
+import '../views/screens/child_channels_screen.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -25,6 +26,7 @@ class AppRoutes {
   static const String settingsGrade = '/home/settings/grade';
   static const String settingsTimer = '/home/settings/timer';
   static const String settingsQuizCount = '/home/settings/quiz-count';
+  static const String settingsChildChannels = '/home/settings/child-channels';
 
   static final GoRouter router = GoRouter(
     initialLocation: splash,
@@ -78,6 +80,11 @@ class AppRoutes {
                 path: 'quiz-count',
                 name: 'settingsQuizCount',
                 builder: (context, state) => const QuizCountSettingsScreen(),
+              ),
+              GoRoute(
+                path: 'child-channels',
+                name: 'settingsChildChannels',
+                builder: (context, state) => const ChildChannelsScreen(),
               ),
             ],
           ),
