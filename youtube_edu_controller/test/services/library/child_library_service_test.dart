@@ -1,10 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qbeen/models/child_library.dart';
-import 'package:qbeen/services/firestore/child_library_repository.dart';
-import 'package:qbeen/services/library/child_library_service.dart';
-import 'package:qbeen/services/storage/local_storage_service.dart';
+import 'package:qtime/models/child_library.dart';
+import 'package:qtime/services/firestore/child_library_repository.dart';
+import 'package:qtime/services/library/child_library_service.dart';
+import 'package:qtime/services/storage/local_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

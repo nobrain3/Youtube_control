@@ -45,7 +45,8 @@ flutter doctor
 - **Test/CI**: flutter_test, GitHub Actions
 - **Storage**: SharedPreferences (로컬) + Cloud Firestore (보호자 로그인 시 동기화, #99)
 - **Auth**: Firebase Auth (보호자: 이메일/비밀번호, Google) + google_sign_in v6 (YouTube 스코프)
-- **Firebase**: 프로젝트 `qbeen-app` (기존 `youtube-edu-control`은 YouTube API 키 전용), 설정은 `youtube_edu_controller/firebase.json`,
+- **앱 이름**: 큐타임(QTime), 패키지 `kr.qtime.app` (#116, 구 큐비엔/`com.qbeen.app`)
+- **Firebase**: 프로젝트 `qbeen-app` (ID는 변경 불가로 유지, 기존 `youtube-edu-control`은 YouTube API 키 전용), 설정은 `youtube_edu_controller/firebase.json`,
   보안 규칙 `firestore.rules`. Firebase 작업은 Firebase 플러그인 스킬(`firebase:*`) 사용
 
 ### 🌳 브랜치 상태
@@ -133,7 +134,7 @@ OPENAI_API_KEY=your_openai_api_key_here  # 미설정 시 내장 문제은행으�
 ## 🎯 다음 작업 우선순위
 
 ### 0. 최우선 (다른 작업보다 먼저)
-- [ ] 앱 이름 변경 '큐비엔' → 새 이름 (#116) — 도메인 구매·OAuth 심사(#103)·할당량 증설(#107) 신청 전에 확정해야 재심사를 피함
+- [x] 앱 이름 변경 '큐비엔' → '큐타임', 패키지 `kr.qtime.app` (#116) — 다음: qtime.kr 구매 → 웹사이트 배포 → #103·#107 신청
 
 ### 1. 출시 블로커
 - [ ] 앱 이름/브랜딩에서 'YouTube' 상표 제거 (#81)

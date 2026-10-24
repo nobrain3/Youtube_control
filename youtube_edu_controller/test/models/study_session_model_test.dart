@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:qbeen/models/study_session_model.dart';
+import 'package:qtime/models/study_session_model.dart';
 
 void main() {
   group('StudySession', () {
