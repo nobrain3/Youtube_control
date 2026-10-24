@@ -10,6 +10,7 @@ import '../../services/storage/local_storage_service.dart';
 import '../../services/timer/learning_timer_service.dart';
 import '../../services/ai/question_generator_service.dart';
 import '../../models/question_model.dart';
+import '../../utils/app_logger.dart';
 
 class PlayerScreen extends ConsumerStatefulWidget {
   final String videoId;
@@ -144,7 +145,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         'description': videoDetails.description,
       });
     } catch (e) {
-      debugPrint('Failed to save watch history: $e');
+      logDebug('Failed to save watch history: $e');
     }
   }
 

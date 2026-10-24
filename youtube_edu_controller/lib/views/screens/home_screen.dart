@@ -5,6 +5,7 @@ import '../../config/app_theme.dart';
 import '../../services/api/youtube_service.dart';
 import '../../services/library/child_library_service.dart';
 import '../../services/storage/local_storage_service.dart';
+import '../../utils/app_logger.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -55,9 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoadingRecommended = false;
       });
     } catch (e, stackTrace) {
-      debugPrint('=== 추천 영상 로딩 오류 ===');
-      debugPrint('Error: $e');
-      debugPrint('StackTrace: $stackTrace');
+      logDebug('=== 추천 영상 로딩 오류 ===');
+      logDebug('Error: $e');
+      logDebug('StackTrace: $stackTrace');
       setState(() {
         _isLoadingRecommended = false;
       });
@@ -110,9 +111,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoadingMoreRecommended = false;
       });
     } catch (e, stackTrace) {
-      debugPrint('=== 추가 영상 로딩 오류 ===');
-      debugPrint('Error: $e');
-      debugPrint('StackTrace: $stackTrace');
+      logDebug('=== 추가 영상 로딩 오류 ===');
+      logDebug('Error: $e');
+      logDebug('StackTrace: $stackTrace');
       setState(() {
         _isLoadingMoreRecommended = false;
       });

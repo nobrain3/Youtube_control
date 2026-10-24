@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import '../storage/local_storage_service.dart';
 import 'user_repository.dart';
+import '../../utils/app_logger.dart';
 
 /// 로그인한 보호자 계정과 기기 로컬 설정 사이의 동기화 규칙 (#99).
 ///
@@ -76,7 +76,7 @@ class AccountSyncService {
     } catch (e) {
       // 오프라인 등으로 실패해도 로컬 설정은 이미 저장되어 있으므로 무시한다.
       // (Firestore는 오프라인 쓰기를 큐에 담았다가 연결되면 재전송한다)
-      debugPrint('설정 클라우드 동기화 실패: $e');
+      logDebug('설정 클라우드 동기화 실패: $e');
     }
   }
 
