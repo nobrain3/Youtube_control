@@ -269,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SizedBox(width: 4.w),
             Text(
-              '큐비엔',
+              '큐타임',
               style: TextStyle(
                 color: Colors.black,
                 fontSize: 20.sp,

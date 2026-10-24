@@ -45,7 +45,8 @@ flutter doctor
 - **Test/CI**: flutter_test, GitHub Actions
 - **Storage**: SharedPreferences (로컬) + Cloud Firestore (보호자 로그인 시 동기화, #99)
 - **Auth**: Firebase Auth (보호자: 이메일/비밀번호, Google) + google_sign_in v6 (YouTube 스코프)
-- **Firebase**: 프로젝트 `qbeen-app` (기존 `youtube-edu-control`은 YouTube API 키 전용), 설정은 `youtube_edu_controller/firebase.json`,
+- **앱 이름**: 큐타임(QTime), 패키지 `kr.qtime.app` (#116, 구 큐비엔/`com.qbeen.app`)
+- **Firebase**: 프로젝트 `qbeen-app` (ID는 변경 불가로 유지, 기존 `youtube-edu-control`은 YouTube API 키 전용), 설정은 `youtube_edu_controller/firebase.json`,
   보안 규칙 `firestore.rules`. Firebase 작업은 Firebase 플러그인 스킬(`firebase:*`) 사용
 
 ### 🌳 브랜치 상태

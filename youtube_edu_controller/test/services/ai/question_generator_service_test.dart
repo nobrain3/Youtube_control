@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:qbeen/services/ai/question_generator_service.dart';
-import 'package:qbeen/models/question_model.dart';
+import 'package:qtime/services/ai/question_generator_service.dart';
+import 'package:qtime/models/question_model.dart';
 
 void main() {
   group('QuestionGeneratorService', () {

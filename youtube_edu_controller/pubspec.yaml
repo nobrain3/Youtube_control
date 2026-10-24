@@ -1,5 +1,5 @@
-name: qbeen
-description: "A new Flutter project."
+name: qtime
+description: "큐타임 - 영상 보며 배우는 학습 앱"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
