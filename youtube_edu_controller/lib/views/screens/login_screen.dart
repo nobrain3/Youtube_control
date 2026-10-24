@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../config/app_routes.dart';
 import '../../services/auth/auth_service.dart';
+import '../widgets/legal_links.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -257,7 +258,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                SizedBox(height: 32.h),
+                SizedBox(height: 12.h),
+                // 처음 Google로 로그인하면 가입 화면 없이 계정이 만들어지므로 동의 안내를 둔다 (#103)
+                const LegalConsentNotice(prefix: 'Google로 처음 로그인하면 큐타임의 '),
+                SizedBox(height: 24.h),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

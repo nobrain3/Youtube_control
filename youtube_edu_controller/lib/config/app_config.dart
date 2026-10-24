@@ -4,6 +4,12 @@ class AppConfig {
   static const String appName = '큐타임';
   static const String appVersion = '1.0.0';
 
+  // 웹사이트 (#103, #116). qtime.kr을 Firebase Hosting에 연결한다.
+  // Google 인증 플랫폼의 승인된 도메인과 같은 값이어야 한다.
+  static const String websiteUrl = 'https://qtime.kr';
+  static const String privacyPolicyUrl = '$websiteUrl/privacy';
+  static const String termsUrl = '$websiteUrl/terms';
+
   // API Configuration
   static const String baseUrl = 'https://api.youtubedu.com';
   static String get youtubeApiKey => dotenv.env['YOUTUBE_API_KEY'] ?? '';

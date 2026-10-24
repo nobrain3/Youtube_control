@@ -41,7 +41,7 @@ flutter doctor
 - **State Management**: Riverpod
 - **UI**: flutter_screenutil, go_router
 - **APIs**: YouTube Data API v3, Google OAuth, OpenAI API
-- **Player**: youtube_player_flutter (주) + youtube_explode_dart/chewie (대체)
+- **Player**: youtube_player_flutter (공식 임베드만. 스트림 추출 대체 플레이어는 #107에서 제거)
 - **Test/CI**: flutter_test, GitHub Actions
 - **Storage**: SharedPreferences (로컬) + Cloud Firestore (보호자 로그인 시 동기화, #99)
 - **Auth**: Firebase Auth (보호자: 이메일/비밀번호, Google) + google_sign_in v6 (YouTube 스코프)
@@ -133,7 +133,10 @@ OPENAI_API_KEY=your_openai_api_key_here  # 미설정 시 내장 문제은행으�
 
 ## 🎯 다음 작업 우선순위
 
-### 1. 출시 블로커 (최우선)
+### 0. 최우선 (다른 작업보다 먼저)
+- [x] 앱 이름 변경 '큐비엔' → '큐타임', 패키지 `kr.qtime.app` (#116) — 다음: qtime.kr 구매 → 웹사이트 배포 → #103·#107 신청
+
+### 1. 출시 블로커
 - [ ] 앱 이름/브랜딩에서 'YouTube' 상표 제거 (#81)
 - [ ] 'Shorts' 상표 용어를 자체 용어로 변경 (#82)
 - [ ] 하단 네비게이션 구조 차별화 (#83)
@@ -141,6 +144,8 @@ OPENAI_API_KEY=your_openai_api_key_here  # 미설정 시 내장 문제은행으�
 - [ ] YouTube API 사용 고지 및 비공식 앱 면책 문구 추가 (#85)
 - [ ] Google 로그인 YouTube 권한 분리 요청 + OAuth 앱 심사 준비 (#103)
 - [ ] YouTube API 할당량 증설 신청 (#107) + 공용 결과 서버 캐시 (#108)
+- [ ] 앱 안에서 보호자 계정 삭제 (#113)
+- [ ] 아이용 콘텐츠 필터 (#115)
 
 ### 2. 단기 개선
 - [ ] 홈 화면 Shorts 필터링 개선 (#77)
