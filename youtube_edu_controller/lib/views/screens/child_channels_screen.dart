@@ -4,6 +4,7 @@ import '../../services/api/youtube_service.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/auth/google_auth_service.dart';
 import '../../services/library/child_library_service.dart';
+import '../../utils/app_logger.dart';
 
 /// 아이가 담은 채널 관리 (보호자용, #104).
 ///
@@ -44,7 +45,7 @@ class _ChildChannelsScreenState extends State<ChildChannelsScreen> {
         _info = {for (final i in infos) i.id: i};
       });
     } catch (e) {
-      debugPrint('채널 정보 조회 실패: $e');
+      logDebug('채널 정보 조회 실패: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -107,7 +108,7 @@ class _ChildChannelsScreenState extends State<ChildChannelsScreen> {
       });
       _showMessage('${selected.length}개 채널을 아이 목록에 넣었어요');
     } catch (e) {
-      debugPrint('보호자 구독 가져오기 실패: $e');
+      logDebug('보호자 구독 가져오기 실패: $e');
       _showMessage('구독 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요');
     } finally {
       if (mounted) setState(() => _isImporting = false);

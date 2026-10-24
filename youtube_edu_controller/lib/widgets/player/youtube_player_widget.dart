@@ -7,6 +7,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:chewie/chewie.dart';
 import 'package:video_player/video_player.dart';
 import '../../services/timer/learning_timer_service.dart';
+import '../../utils/app_logger.dart';
 
 class YouTubePlayerWidget extends ConsumerStatefulWidget {
   final String videoId;
@@ -74,7 +75,7 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
     });
 
     try {
-      debugPrint('Switching to fallback player for video: ${widget.videoId}');
+      logDebug('Switching to fallback player for video: ${widget.videoId}');
       var yt = YoutubeExplode();
 
       // Get video stream manifest
@@ -91,7 +92,7 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
       _videoController = VideoPlayerController.networkUrl(streamInfo.url);
       await _videoController!.initialize();
 
-      debugPrint('Fallback player initialized: ${streamInfo.qualityLabel}');
+      logDebug('Fallback player initialized: ${streamInfo.qualityLabel}');
 
       // Initialize Chewie controller for better UI
       _chewieController = ChewieController(
@@ -123,7 +124,7 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
 
       yt.close();
     } catch (e) {
-      debugPrint('Failed to load fallback player: $e');
+      logDebug('Failed to load fallback player: $e');
       setState(() {
         _isLoadingFallback = false;
         _hasPlaybackError = true;
@@ -548,7 +549,7 @@ class _YouTubePlayerWidgetState extends ConsumerState<YouTubePlayerWidget> {
                           mode: url_launcher.LaunchMode.externalApplication,
                         );
                       } catch (e) {
-                        debugPrint('Failed to open YouTube: $e');
+                        logDebug('Failed to open YouTube: $e');
                       }
                     },
                     icon: Icon(Icons.open_in_new, size: 18.sp),

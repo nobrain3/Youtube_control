@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import '../../models/child_library.dart';
 import '../firestore/child_library_repository.dart';
 import '../storage/local_storage_service.dart';
+import '../../utils/app_logger.dart';
 
 /// 아이별 좋아요·싫어요와 담은 채널 관리 (#104).
 ///
@@ -78,7 +78,7 @@ class ChildLibraryService {
       await write(target.uid, target.childId);
     } catch (e) {
       // 로컬에는 이미 저장됐다. Firestore는 오프라인 쓰기를 큐에 담았다가 재전송한다.
-      debugPrint('아이 라이브러리 클라우드 반영 실패 ($label): $e');
+      logDebug('아이 라이브러리 클라우드 반영 실패 ($label): $e');
     }
   }
 
