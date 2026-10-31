@@ -43,6 +43,11 @@
 
 ## 3. 절차
 
+> **심사 시점 (2026-10-31 결정):** 영상 녹화·심사 신청과 할당량 증설(#107)은 앱이 출시 직전 수준으로 완성된 뒤 진행한다.
+> 심사는 실제 동작하는 앱 기준이고, 신청 후 이름·로고·범위를 바꾸면 재심사가 필요할 수 있다.
+> 출시 예정일 1~2개월 전에 시작한다. 그 전까지는 기본 할당량과 사용자 100명 제한으로 충분하다.
+> 그 전 완료할 것: 출시 블로커(#113 계정 삭제, #115 아이용 필터, #108 서버 캐시), Play 앱 서명 키 SHA 등록(새 Android OAuth 클라이언트가 생김).
+
 1. [x] 도메인 `qtime.kr` 구매(가비아, 2029-10까지) → Firebase Hosting 커스텀 도메인 추가, DNS(A·TXT) 설정
 2. [x] 앱 전용 이메일 `qtime.help@gmail.com` → 웹사이트 자리표시 교체 (보호책임자 김진, 시행일 2026-10-24)
 3. [x] 웹사이트 배포 (`firebase deploy --only hosting --project qbeen-app`) — qtime.kr HTTPS는 Firebase 확인·인증서 발급 대기
@@ -55,7 +60,7 @@
    - [x] 사용자 지원 이메일 qtime.help@gmail.com (qtime.help 계정으로 로그인해 변경, 로그인한 계정의 이메일만 선택 가능)
    - [ ] 앱 로고 업로드 (120×120 PNG)
 7. [x] Google 인증 플랫폼 > 데이터 액세스: email·profile·openid + `youtube.readonly` 추가, 사용 이유 입력 (2026-10-31)
-   - [ ] 영상 녹화 전 옛 클라이언트 `Android client for com.qbeen.app (debug)`와 Firebase 앱 `QBeeN Android` 삭제
+   - [x] 옛 클라이언트 `Android client for com.qbeen.app (debug)`와 Firebase 앱 `QBeeN Android` 삭제
      (콘솔 안내: 프로젝트의 모든 OAuth 클라이언트가 시연 영상에 포함되어야 함. 남은 클라이언트는 Android `kr.qtime.app`, 웹)
 8. [ ] 시연 영상 녹화·업로드 (YouTube 일부공개)
 9. [ ] 심사 신청 → 이메일로 오는 추가 질문에 답변 (보통 수일~수주)
