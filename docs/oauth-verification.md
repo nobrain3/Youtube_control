@@ -31,26 +31,37 @@
 | 항목 | 값 |
 |---|---|
 | 앱 이름 | 큐타임 (상표 'YouTube' 미포함 — #81) |
-| 사용자 지원 이메일 | 앱 전용 문의 이메일 (준비 중) |
+| 사용자 지원 이메일 | qtime.help@gmail.com |
 | 앱 로고 | 120×120 PNG, 큐타임 로고 (YouTube 로고 사용 금지) |
 | 애플리케이션 홈페이지 | `https://qtime.kr/` |
 | 개인정보처리방침 | `https://qtime.kr/privacy` |
 | 서비스 약관 | `https://qtime.kr/terms` |
 | 승인된 도메인 | `qtime.kr` (홈페이지·방침과 같은 도메인) |
-| 개발자 연락처 | 앱 전용 이메일 |
+| 개발자 연락처 | qtime.help@gmail.com |
 
 웹사이트 원본: `youtube_edu_controller/hosting/` (배포 방법은 그 폴더의 README).
 
 ## 3. 절차
 
-1. [ ] 도메인 구매 (사용자) → Firebase Hosting 커스텀 도메인 연결
-2. [ ] 앱 전용 이메일 생성 (사용자) → 웹사이트 자리표시(`__CONTACT_EMAIL__` 등) 교체
-3. [ ] 웹사이트 배포 (`firebase deploy --only hosting --project qbeen-app`)
-4. [ ] 앱 `AppConfig.websiteUrl`을 구매한 도메인으로 변경
-5. [ ] [Google Search Console](https://search.google.com/search-console)에서 도메인 소유권 확인
+> **심사 시점 (2026-10-31 결정):** 영상 녹화·심사 신청과 할당량 증설(#107)은 앱이 출시 직전 수준으로 완성된 뒤 진행한다.
+> 심사는 실제 동작하는 앱 기준이고, 신청 후 이름·로고·범위를 바꾸면 재심사가 필요할 수 있다.
+> 출시 예정일 1~2개월 전에 시작한다. 그 전까지는 기본 할당량과 사용자 100명 제한으로 충분하다.
+> 그 전 완료할 것: 출시 블로커(#113 계정 삭제, #115 아이용 필터, #108 서버 캐시), Play 앱 서명 키 SHA 등록(새 Android OAuth 클라이언트가 생김).
+
+1. [x] 도메인 `qtime.kr` 구매(가비아, 2029-10까지) → Firebase Hosting 커스텀 도메인 추가, DNS(A·TXT) 설정
+2. [x] 앱 전용 이메일 `qtime.help@gmail.com` → 웹사이트 자리표시 교체 (보호책임자 김진, 시행일 2026-10-24)
+3. [x] 웹사이트 배포 (`firebase deploy --only hosting --project qbeen-app`) — qtime.kr HTTPS는 Firebase 확인·인증서 발급 대기
+4. [x] 앱 `AppConfig.websiteUrl` = `https://qtime.kr`
+5. [x] [Google Search Console](https://search.google.com/search-console)에서 도메인 소유권 확인 (DNS TXT, nobrain85@gmail.com)
    (심사 신청 계정과 같은 Google 계정)
 6. [ ] Google 인증 플랫폼 > 브랜딩: 위 2번 표대로 입력, 승인된 도메인 추가
-7. [ ] Google 인증 플랫폼 > 데이터 액세스: `youtube.readonly` 추가, 사용 이유 입력
+   - [x] 앱 이름 큐타임, 홈페이지·방침·약관, 승인된 도메인 `qtime.kr`, 개발자 연락처 저장 (2026-10-31)
+   - [x] `qtime.help@gmail.com`을 `qbeen-app` 프로젝트 소유자로 추가
+   - [x] 사용자 지원 이메일 qtime.help@gmail.com (qtime.help 계정으로 로그인해 변경, 로그인한 계정의 이메일만 선택 가능)
+   - [ ] 앱 로고 업로드 (120×120 PNG) — 새 로고 확정 후 (#119). 현재 `docs/assets/oauth-logo-120.png`는 임시 파일이라 올리지 않는다
+7. [x] Google 인증 플랫폼 > 데이터 액세스: email·profile·openid + `youtube.readonly` 추가, 사용 이유 입력 (2026-10-31)
+   - [x] 옛 클라이언트 `Android client for com.qbeen.app (debug)`와 Firebase 앱 `QBeeN Android` 삭제
+     (콘솔 안내: 프로젝트의 모든 OAuth 클라이언트가 시연 영상에 포함되어야 함. 남은 클라이언트는 Android `kr.qtime.app`, 웹)
 8. [ ] 시연 영상 녹화·업로드 (YouTube 일부공개)
 9. [ ] 심사 신청 → 이메일로 오는 추가 질문에 답변 (보통 수일~수주)
 
