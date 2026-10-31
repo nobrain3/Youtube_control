@@ -58,7 +58,7 @@
    - [x] 앱 이름 큐타임, 홈페이지·방침·약관, 승인된 도메인 `qtime.kr`, 개발자 연락처 저장 (2026-10-31)
    - [x] `qtime.help@gmail.com`을 `qbeen-app` 프로젝트 소유자로 추가
    - [x] 사용자 지원 이메일 qtime.help@gmail.com (qtime.help 계정으로 로그인해 변경, 로그인한 계정의 이메일만 선택 가능)
-   - [ ] 앱 로고 업로드 (120×120 PNG)
+   - [ ] 앱 로고 업로드 (120×120 PNG) — 새 로고 확정 후 (#119). 현재 `docs/assets/oauth-logo-120.png`는 임시 파일이라 올리지 않는다
 7. [x] Google 인증 플랫폼 > 데이터 액세스: email·profile·openid + `youtube.readonly` 추가, 사용 이유 입력 (2026-10-31)
    - [x] 옛 클라이언트 `Android client for com.qbeen.app (debug)`와 Firebase 앱 `QBeeN Android` 삭제
      (콘솔 안내: 프로젝트의 모든 OAuth 클라이언트가 시연 영상에 포함되어야 함. 남은 클라이언트는 Android `kr.qtime.app`, 웹)
