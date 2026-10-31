@@ -52,9 +52,11 @@
 6. [ ] Google 인증 플랫폼 > 브랜딩: 위 2번 표대로 입력, 승인된 도메인 추가
    - [x] 앱 이름 큐타임, 홈페이지·방침·약관, 승인된 도메인 `qtime.kr`, 개발자 연락처 저장 (2026-10-31)
    - [x] `qtime.help@gmail.com`을 `qbeen-app` 프로젝트 소유자로 추가
-   - [ ] 사용자 지원 이메일: qtime.help 계정으로 콘솔에 로그인해서 변경 (로그인한 계정의 이메일만 선택 가능)
+   - [x] 사용자 지원 이메일 qtime.help@gmail.com (qtime.help 계정으로 로그인해 변경, 로그인한 계정의 이메일만 선택 가능)
    - [ ] 앱 로고 업로드 (120×120 PNG)
-7. [ ] Google 인증 플랫폼 > 데이터 액세스: `youtube.readonly` 추가, 사용 이유 입력
+7. [x] Google 인증 플랫폼 > 데이터 액세스: email·profile·openid + `youtube.readonly` 추가, 사용 이유 입력 (2026-10-31)
+   - [ ] 영상 녹화 전 옛 클라이언트 `Android client for com.qbeen.app (debug)`와 Firebase 앱 `QBeeN Android` 삭제
+     (콘솔 안내: 프로젝트의 모든 OAuth 클라이언트가 시연 영상에 포함되어야 함. 남은 클라이언트는 Android `kr.qtime.app`, 웹)
 8. [ ] 시연 영상 녹화·업로드 (YouTube 일부공개)
 9. [ ] 심사 신청 → 이메일로 오는 추가 질문에 답변 (보통 수일~수주)
 
